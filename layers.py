@@ -21,14 +21,14 @@ def PReLU(last, format=None, collections=None, dtype=tf.float32, scope='PReLU'):
     return last
 
 def SEUnit(last, channels=None, format=None, collections=None, scope='SEUnit'):
-    in_channels = last.get_shape()[-3 if format == 'NCHW' else -1]
+    in_channels = int(last.get_shape()[-3 if format == 'NCHW' else -1])
     if channels is None:
         channels = in_channels
     if format is None:
         format = 'NHWC'
     if collections is not None and not isinstance(collections, Iterable):
         collections = [collections]
-    with tf.name_scope(scope):
+    with tf.variable_scope(scope):
         skip = last
         last = tf.reduce_mean(last, [-2, -1] if format == 'NCHW' else [-3, -2])
         last = slim.fully_connected(last, channels, tf.nn.relu,
@@ -38,4 +38,3 @@ def SEUnit(last, channels=None, format=None, collections=None, scope='SEUnit'):
         last = tf.expand_dims(tf.expand_dims(last, hw_idx), hw_idx)
         last = tf.multiply(skip, last)
     return last
-

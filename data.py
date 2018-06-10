@@ -41,6 +41,7 @@ class Data:
         if self.val_size is not None:
             self.val_set = data_list[:self.val_size]
             data_list = data_list[self.val_size:]
+            eprint('validation set: {}'.format(self.val_size))
         # main set
         self.epoch_steps = len(data_list) // self.batch_size
         self.epoch_size = self.epoch_steps * self.batch_size

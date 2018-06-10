@@ -17,6 +17,7 @@ class SRN:
         self.patch_width = None
         # train parameters
         self.random_seed = None
+        self.dropout = 0.5
         self.var_ema = 0.999
         # generator parameters
         self.generator_acti = ACTIVATION
@@ -40,7 +41,8 @@ class SRN:
 
     @staticmethod
     def add_arguments(argp):
-        # model parameters
+        # training parameters
+        argp.add_argument('--dropout', type=float, default=0.5)
         argp.add_argument('--var-ema', type=float, default=0.999)
         argp.add_argument('--generator-wd', type=float, default=1e-6)
         argp.add_argument('--generator-lr', type=float, default=1e-3)
@@ -61,19 +63,22 @@ class SRN:
         last = slim.conv2d(last, channels, kernel, stride, 'SAME', format,
             dilate, None, None, None, initializer, regularizer, biases,
             variables_collections=collections)
+        # skip connection
+        last = layers.SEUnit(last, channels, format, collections)
         last += skip
         return last
 
-    def InBlock(self, last, channels, kernel=[1, 4], stride=[1, 1], format=DATA_FORMAT,
+    def InBlock(self, last, channels, kernel=[1, 3], stride=[1, 1], format=DATA_FORMAT,
         activation=ACTIVATION, normalizer=None, regularizer=None, collections=None):
         initializer = tf.initializers.variance_scaling(
             1.0, 'fan_in', 'normal', self.random_seed, self.dtype)
         last = slim.conv2d(last, channels, kernel, stride, 'SAME', format,
             1, None, None, weights_initializer=initializer,
             weights_regularizer=regularizer, variables_collections=collections)
-        last = self.ResBlock(last, channels, format=format,
-            activation=activation, normalizer=normalizer,
-            regularizer=regularizer, collections=collections)
+        with tf.variable_scope('ResBlock'):
+            last = self.ResBlock(last, channels, format=format,
+                activation=activation, normalizer=normalizer,
+                regularizer=regularizer, collections=collections)
         return last
 
     def EBlock(self, last, channels, kernel=[1, 4], stride=[1, 2], format=DATA_FORMAT,
@@ -81,15 +86,16 @@ class SRN:
         initializer = tf.initializers.variance_scaling(
             1.0, 'fan_in', 'normal', self.random_seed, self.dtype)
         skip = last
-        #if normalizer: last = normalizer(last)
         if activation: last = activation(last)
         last = slim.conv2d(last, channels, kernel, stride, 'SAME', format,
             1, None, None, weights_initializer=initializer,
             weights_regularizer=regularizer, variables_collections=collections)
-        last = self.ResBlock(last, channels, format=format,
-            activation=activation, normalizer=normalizer,
-            regularizer=regularizer, collections=collections)
+        with tf.variable_scope('ResBlock'):
+            last = self.ResBlock(last, channels, format=format,
+                activation=activation, normalizer=normalizer,
+                regularizer=regularizer, collections=collections)
         with tf.variable_scope('SkipConnection'):
+            last = layers.SEUnit(last, channels, format, collections)
             if stride != 1 or stride != [1, 1]:
                 pool_stride = [1, 1] + stride if format == 'NCHW' else [1] + stride + [1]
                 skip = tf.nn.avg_pool(skip, pool_stride, pool_stride, 'SAME', format)
@@ -109,18 +115,20 @@ class SRN:
         last = slim.conv2d_transpose(last, channels, kernel, stride, 'SAME', format,
             None, None, weights_initializer=initializer,
             weights_regularizer=regularizer, variables_collections=collections)
-        last = self.ResBlock(last, channels, format=format,
-            activation=activation, normalizer=normalizer,
-            regularizer=regularizer, collections=collections)
+        with tf.variable_scope('ResBlock'):
+            last = self.ResBlock(last, channels, format=format,
+                activation=activation, normalizer=normalizer,
+                regularizer=regularizer, collections=collections)
         return last
 
     def OutBlock(self, last, channels, channels2, kernel=[1, 3], stride=[1, 1], format=DATA_FORMAT,
         activation=ACTIVATION, normalizer=None, regularizer=None, collections=None):
         initializer = tf.initializers.variance_scaling(
             1.0, 'fan_in', 'normal', self.random_seed, self.dtype)
-        last = self.ResBlock(last, channels, format=format,
-            activation=activation, normalizer=normalizer,
-            regularizer=regularizer, collections=collections)
+        with tf.variable_scope('ResBlock'):
+            last = self.ResBlock(last, channels, format=format,
+                activation=activation, normalizer=normalizer,
+                regularizer=regularizer, collections=collections)
         if activation: last = activation(last)
         last = slim.conv2d(last, channels2, kernel, stride, 'SAME', format,
             1, None, None, weights_initializer=initializer,
@@ -198,6 +206,8 @@ class SRN:
                 last += skip
             with tf.variable_scope('OutBlock'):
                 last = activation(last)
+                if self.dropout > 0:
+                    last = tf.layers.dropout(last, self.dropout, training=self.g_training)
                 last = slim.fully_connected(last, self.out_channels, None, None,
                     weights_regularizer=regularizer, variables_collections=var_key)
             last = tf.identity(last, 'outputs')
