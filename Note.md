@@ -74,3 +74,20 @@ added SEUnit to residuals in EBlocks
 ## 12
 
 Validation set size: 32 => 256
+
+## 13
+
+(furthur) batch size: 32 => 64
+- might improve performance, but slower due to bottleneck in CPU
+- overfitting: training loss close to 0
+
+## 14
+
+(require reinvestigate)
+InBlock/conv2d kernel: [1,3] => [1,7]
+EBlock/conv2d kernel: [1,4] => [1,7]
+
+## 15
+
+[model2]
+DenseNet with 64 InBlock, 7 * 64 EBlock

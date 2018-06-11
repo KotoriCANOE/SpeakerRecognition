@@ -3,7 +3,7 @@ import numpy as np
 import os
 from utils import eprint, listdir_files, reset_random, create_session
 from data import Data
-from model import SRN
+from model2 import SRN
 
 # class for training session
 class Train:
@@ -229,7 +229,7 @@ def main(argv=None):
     argp.add_argument('--val-frequency', type=int, default=100)
     argp.add_argument('--log-file', default='train.log')
     argp.add_argument('--batch-size', type=int, default=32)
-    argp.add_argument('--val-size', type=int, default=256)
+    argp.add_argument('--val-size', type=int, default=32)
     # data parameters
     argp.add_argument('--dtype', type=int, default=2)
     argp.add_argument('--data-format', default='NCHW')
