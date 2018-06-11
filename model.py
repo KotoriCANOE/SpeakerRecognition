@@ -140,6 +140,8 @@ class SRN:
         main_scope = 'generator'
         format = self.data_format
         var_key = self.generator_vkey
+        kernel1 = [1, 4]
+        stride1 = [1, 2]
         # model definition
         with tf.variable_scope(main_scope):
             # state
@@ -150,50 +152,40 @@ class SRN:
             normalizer = lambda x: slim.batch_norm(x, 0.999, center=True, scale=False,
                 is_training=self.g_training, data_format=format, renorm=False)
             regularizer = slim.l2_regularizer(self.generator_wd)
-            skips = []
             # network
             last = tf.identity(last, 'inputs')
-            skips.append(last)
             with tf.variable_scope('InBlock'):
                 last = self.InBlock(last, 16, [1, 3], [1, 1], format, activation,
                     normalizer, regularizer, var_key)
-                skips.append(last)
             with tf.variable_scope('EBlock_1'):
-                last = self.EBlock(last, 22, [1, 4], [1, 2], format, activation,
+                last = self.EBlock(last, 22, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
-                skips.append(last)
             with tf.variable_scope('EBlock_2'):
-                last = self.EBlock(last, 32, [1, 4], [1, 2], format, activation,
+                last = self.EBlock(last, 32, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
-                skips.append(last)
             with tf.variable_scope('EBlock_3'):
-                last = self.EBlock(last, 45, [1, 4], [1, 2], format, activation,
+                last = self.EBlock(last, 45, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
-                skips.append(last)
             with tf.variable_scope('EBlock_4'):
-                last = self.EBlock(last, 64, [1, 4], [1, 2], format, activation,
+                last = self.EBlock(last, 64, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
-                skips.append(last)
             with tf.variable_scope('EBlock_5'):
-                last = self.EBlock(last, 90, [1, 4], [1, 2], format, activation,
+                last = self.EBlock(last, 90, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
-                skips.append(last)
             with tf.variable_scope('EBlock_6'):
-                last = self.EBlock(last, 128, [1, 4], [1, 2], format, activation,
+                last = self.EBlock(last, 128, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
-                skips.append(last)
             with tf.variable_scope('EBlock_7'):
-                last = self.EBlock(last, 180, [1, 4], [1, 2], format, activation,
+                last = self.EBlock(last, 180, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
-                skips.append(last)
             with tf.variable_scope('EBlock_8'):
-                last = self.EBlock(last, 256, [1, 4], [1, 2], format, activation,
+                last = self.EBlock(last, 256, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_9'):
-                last = self.EBlock(last, 360, [1, 4], [1, 2], format, activation,
+                last = self.EBlock(last, 360, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_10'):
-                last = self.EBlock(last, 512, [1, 4], [1, 2], format, activation,
+                last = self.EBlock(last, 512, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('GlobalAveragePooling'):
                 last = tf.reduce_mean(last, [-2, -1] if format == 'NCHW' else [-3, -2])
@@ -277,6 +269,9 @@ class SRN:
         return self.g_loss, g_loss_main
 
     def train(self, global_step):
+        # saving memory with gradient checkpoints
+        self.set_reuse_checkpoints()
+        g_ckpt = tf.get_collection('checkpoints', 'generator')
         # dependencies to be updated
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         # learning rate
@@ -286,6 +281,7 @@ class SRN:
         # optimizer
         g_opt = tf.contrib.opt.NadamOptimizer(g_lr)
         with tf.control_dependencies(update_ops):
+            #g_grads_vars = self.compute_gradients(self.g_loss, self.g_tvars, g_ckpt)
             g_grads_vars = g_opt.compute_gradients(self.g_loss, self.g_tvars)
             update_ops = [g_opt.apply_gradients(g_grads_vars, global_step)]
         # histogram for gradients and variables
@@ -309,3 +305,26 @@ class SRN:
         all_summary = tf.summary.merge_all()
         loss_summary = tf.summary.merge(self.loss_sums)
         return all_summary, loss_summary
+
+    @staticmethod
+    def set_reuse_checkpoints():
+        import re
+        # https://stackoverflow.com/a/36893840
+        # get the name of all the tensors output by weight operations
+        # MatMul, Conv2D, etc.
+        graph = tf.get_default_graph()
+        nodes = graph.as_graph_def().node
+        regex = re.compile(r'^.+(?:MatMul|Conv2D|conv2d_transpose|BiasAdd)$')
+        op_names = [n.name for n in nodes if re.match(regex, n.name)]
+        tensors = [graph.get_tensor_by_name(n + ':0') for n in op_names]
+        # add these tensors to collection 'checkpoints'
+        for tensor in tensors:
+            tf.add_to_collection('checkpoints', tensor)
+
+    @staticmethod
+    def compute_gradients(loss, var_list, checkpoints='collection'):
+        # https://github.com/openai/gradient-checkpointing
+        from memory_saving_gradients import gradients
+        grads = gradients(loss, var_list, checkpoints=checkpoints)
+        grads_vars = list(zip(grads, var_list))
+        return grads_vars

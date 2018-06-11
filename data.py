@@ -96,8 +96,8 @@ class Data:
         return inputs, labels
 
     def gen_main(self, start=0):
-        from concurrent.futures import ProcessPoolExecutor
-        with ProcessPoolExecutor(self.threads) as executor:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(self.threads) as executor:
             futures = []
             # loop over epochs
             for epoch in range(start // self.epoch_steps, self.num_epochs):
