@@ -32,13 +32,13 @@ correctly calculate accuracy
 
 ## 04
 
-(furthur) replace avg pooling with max pooling
+(unchanged/furthur) replace avg pooling with max pooling
 - resolved overfitting: validation loss won't fluctuate
 - higher loss, lower accuracy
 
 ## 05
 
-(futhur) learning rate: 1e-3 => 4e-4
+(unchanged/furthur) learning rate: 1e-3 => 4e-4
 
 ## 06
 
@@ -77,17 +77,52 @@ Validation set size: 32 => 256
 
 ## 13
 
-(furthur) batch size: 32 => 64
+(unchanged/furthur) batch size: 32 => 64
 - might improve performance, but slower due to bottleneck in CPU
 - overfitting: training loss close to 0
 
 ## 14
 
 (require reinvestigate)
-InBlock/conv2d kernel: [1,3] => [1,7]
-EBlock/conv2d kernel: [1,4] => [1,7]
+InBlock/conv2d kernel: 1x3 => 1x7
+EBlock/conv2d kernel: 1x4 => 1x7
 
 ## 15
 
 [model2]
-DenseNet with 64 InBlock, 7 * 64 EBlock
+DenseNet
+InBlock: 32
+EBlock: 2*16+2*32+64*6
+
+## 16
+
+EBlock kernel: 1x4 => 1x3
+
+## 17
+
+(unchanged) EBlock: removed 1x1 bottleneck layer
+
+## 18
+
+(unchanged) ResBlock: removed batch norm
+
+## 19
+
+InBlock: 64
+EBlock: 2*32+8*48
+- performance improvement
+
+## 20
+
+Activation: Swish
+- significantly improved performance
+
+## 21
+
+(furthur) EBlock: added activation after 2nd conv
+- slight improvement (require furthur investigation)
+
+## 22
+
+(furthur) EBlock: removed activation before 1st conv
+- accuracy reaches 1 after 56k steps, but is lower before that

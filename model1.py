@@ -107,40 +107,12 @@ class SRN:
             last += skip
         return last
 
-    def DBlock(self, last, channels, kernel=[1, 4], stride=[1, 2], format=DATA_FORMAT,
-        activation=ACTIVATION, normalizer=None, regularizer=None, collections=None):
-        initializer = tf.initializers.variance_scaling(
-            1.0, 'fan_in', 'normal', self.random_seed, self.dtype)
-        if activation: last = activation(last)
-        last = slim.conv2d_transpose(last, channels, kernel, stride, 'SAME', format,
-            None, None, weights_initializer=initializer,
-            weights_regularizer=regularizer, variables_collections=collections)
-        with tf.variable_scope('ResBlock'):
-            last = self.ResBlock(last, channels, format=format,
-                activation=activation, normalizer=normalizer,
-                regularizer=regularizer, collections=collections)
-        return last
-
-    def OutBlock(self, last, channels, channels2, kernel=[1, 3], stride=[1, 1], format=DATA_FORMAT,
-        activation=ACTIVATION, normalizer=None, regularizer=None, collections=None):
-        initializer = tf.initializers.variance_scaling(
-            1.0, 'fan_in', 'normal', self.random_seed, self.dtype)
-        with tf.variable_scope('ResBlock'):
-            last = self.ResBlock(last, channels, format=format,
-                activation=activation, normalizer=normalizer,
-                regularizer=regularizer, collections=collections)
-        if activation: last = activation(last)
-        last = slim.conv2d(last, channels2, kernel, stride, 'SAME', format,
-            1, None, None, weights_initializer=initializer,
-            weights_regularizer=regularizer, variables_collections=collections)
-        return last
-
     def generator(self, last):
         # parameters
         main_scope = 'generator'
         format = self.data_format
         var_key = self.generator_vkey
-        kernel1 = [1, 4]
+        kernel1 = [1, 3]
         stride1 = [1, 2]
         # model definition
         with tf.variable_scope(main_scope):
@@ -155,7 +127,7 @@ class SRN:
             # network
             last = tf.identity(last, 'inputs')
             with tf.variable_scope('InBlock'):
-                last = self.InBlock(last, 16, [1, 3], [1, 1], format, activation,
+                last = self.InBlock(last, 16, [1, 7], [1, 1], format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_1'):
                 last = self.EBlock(last, 22, kernel1, stride1, format, activation,

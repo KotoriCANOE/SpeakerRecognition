@@ -2,7 +2,7 @@ import tensorflow as tf
 import tensorflow.contrib.layers as slim
 import layers
 
-ACTIVATION = tf.nn.relu
+ACTIVATION = layers.Swish
 DATA_FORMAT = 'NCHW'
 
 class SRN:
@@ -87,14 +87,14 @@ class SRN:
             1.0, 'fan_in', 'normal', self.random_seed, self.dtype)
         skip = last
         in_channels = skip.get_shape()[-3 if format == 'NCHW' else -1]
-        if activation: last = activation(last)
+        #if activation: last = activation(last)
         if in_channels > channels:
             last = slim.conv2d(last, channels,
                 [1, 1], [1, 1], 'SAME', format,
                 1, activation, None, weights_initializer=initializer,
                 weights_regularizer=regularizer, variables_collections=collections)
         last = slim.conv2d(last, channels, kernel, stride, 'SAME', format,
-            1, None, None, weights_initializer=initializer,
+            1, activation, None, weights_initializer=initializer,
             weights_regularizer=regularizer, variables_collections=collections)
         with tf.variable_scope('ResBlock'):
             last = self.ResBlock(last, channels, format=format,
@@ -108,40 +108,12 @@ class SRN:
             last = tf.concat([skip, last], -3 if format == 'NCHW' else -1)
         return last
 
-    def DBlock(self, last, channels, kernel=[1, 4], stride=[1, 2], format=DATA_FORMAT,
-        activation=ACTIVATION, normalizer=None, regularizer=None, collections=None):
-        initializer = tf.initializers.variance_scaling(
-            1.0, 'fan_in', 'normal', self.random_seed, self.dtype)
-        if activation: last = activation(last)
-        last = slim.conv2d_transpose(last, channels, kernel, stride, 'SAME', format,
-            None, None, weights_initializer=initializer,
-            weights_regularizer=regularizer, variables_collections=collections)
-        with tf.variable_scope('ResBlock'):
-            last = self.ResBlock(last, channels, format=format,
-                activation=activation, normalizer=normalizer,
-                regularizer=regularizer, collections=collections)
-        return last
-
-    def OutBlock(self, last, channels, channels2, kernel=[1, 3], stride=[1, 1], format=DATA_FORMAT,
-        activation=ACTIVATION, normalizer=None, regularizer=None, collections=None):
-        initializer = tf.initializers.variance_scaling(
-            1.0, 'fan_in', 'normal', self.random_seed, self.dtype)
-        with tf.variable_scope('ResBlock'):
-            last = self.ResBlock(last, channels, format=format,
-                activation=activation, normalizer=normalizer,
-                regularizer=regularizer, collections=collections)
-        if activation: last = activation(last)
-        last = slim.conv2d(last, channels2, kernel, stride, 'SAME', format,
-            1, None, None, weights_initializer=initializer,
-            weights_regularizer=regularizer, variables_collections=collections)
-        return last
-
     def generator(self, last):
         # parameters
         main_scope = 'generator'
         format = self.data_format
         var_key = self.generator_vkey
-        kernel1 = [1, 4]
+        kernel1 = [1, 3]
         stride1 = [1, 2]
         # model definition
         with tf.variable_scope(main_scope):
@@ -149,7 +121,6 @@ class SRN:
             self.g_training = tf.Variable(False, trainable=False, name='training',
                 collections=[tf.GraphKeys.GLOBAL_VARIABLES, tf.GraphKeys.MODEL_VARIABLES])
             activation = self.generator_acti
-            #normalizer = None
             normalizer = lambda x: slim.batch_norm(x, 0.999, center=True, scale=False,
                 is_training=self.g_training, data_format=format, renorm=False)
             regularizer = slim.l2_regularizer(self.generator_wd)
@@ -159,25 +130,34 @@ class SRN:
                 last = self.InBlock(last, 64, [1, 7], [1, 1], format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_1'):
-                last = self.EBlock(last, 64, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 32, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_2'):
-                last = self.EBlock(last, 64, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 32, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_3'):
-                last = self.EBlock(last, 64, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 48, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_4'):
-                last = self.EBlock(last, 64, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 48, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_5'):
-                last = self.EBlock(last, 64, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 48, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_6'):
-                last = self.EBlock(last, 64, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 48, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_7'):
-                last = self.EBlock(last, 64, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 48, kernel1, stride1, format, activation,
+                    normalizer, regularizer, var_key)
+            with tf.variable_scope('EBlock_8'):
+                last = self.EBlock(last, 48, kernel1, stride1, format, activation,
+                    normalizer, regularizer, var_key)
+            with tf.variable_scope('EBlock_9'):
+                last = self.EBlock(last, 48, kernel1, stride1, format, activation,
+                    normalizer, regularizer, var_key)
+            with tf.variable_scope('EBlock_10'):
+                last = self.EBlock(last, 48, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('GlobalAveragePooling'):
                 last = tf.reduce_mean(last, [-2, -1] if format == 'NCHW' else [-3, -2])
@@ -262,8 +242,8 @@ class SRN:
 
     def train(self, global_step):
         # saving memory with gradient checkpoints
-        self.set_reuse_checkpoints()
-        g_ckpt = tf.get_collection('checkpoints', 'generator')
+        #self.set_reuse_checkpoints()
+        #g_ckpt = tf.get_collection('checkpoints', 'generator')
         # dependencies to be updated
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         # learning rate
@@ -273,8 +253,8 @@ class SRN:
         # optimizer
         g_opt = tf.contrib.opt.NadamOptimizer(g_lr)
         with tf.control_dependencies(update_ops):
-            g_grads_vars = self.compute_gradients(self.g_loss, self.g_tvars, g_ckpt)
-            #g_grads_vars = g_opt.compute_gradients(self.g_loss, self.g_tvars)
+            #g_grads_vars = self.compute_gradients(self.g_loss, self.g_tvars, g_ckpt)
+            g_grads_vars = g_opt.compute_gradients(self.g_loss, self.g_tvars)
             update_ops = [g_opt.apply_gradients(g_grads_vars, global_step)]
         # histogram for gradients and variables
         for grad, var in g_grads_vars:
