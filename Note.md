@@ -134,21 +134,18 @@ Activation: Swish
 
 (EBlock: conv -> act -> conv -> act -> ResBlock -> SEUnit +Dense)
 validation size: 32 => 256
-- validation loss close to training loss
 
 ## 24
 
 (unchanged)
 (EBlock: act -> conv -> act -> conv -> ResBlock -> SEUnit +Dense)
 validation size: 32 => 256
-- overfitting: validation loss lower than training loss
 
 ## 25
 
 (unchanged)
 (EBlock: act -> conv -> act -> conv -> act -> ResBlock -> SEUnit +Dense)
 improved loss summary logging and TensorBoard visualization
-- overfitting: validation loss significantly lower than training loss
 
 ## 26
 
@@ -176,4 +173,12 @@ out-channels: 256 => 512
 ## 31
 
 fixed incorrect loss logging and summary
+
+## 32
+
+(unchanged) generator-wd: 1e-6 => 1e-4
+
+## 33
+
+fixed unintended behaviour in logging steps: duplicate forward/backward passes
 
