@@ -75,13 +75,9 @@ class SRN:
         last = slim.conv2d(last, channels, kernel, stride, 'SAME', format,
             1, None, None, weights_initializer=initializer,
             weights_regularizer=regularizer, variables_collections=collections)
-        with tf.variable_scope('ResBlock'):
-            last = self.ResBlock(last, channels, format=format,
-                activation=activation, normalizer=normalizer,
-                regularizer=regularizer, collections=collections)
         return last
 
-    def EBlock(self, last, channels, kernel=[1, 4], stride=[1, 2], format=DATA_FORMAT,
+    def EBlock(self, last, channels, resblocks=1, kernel=[1, 4], stride=[1, 2], format=DATA_FORMAT,
         activation=ACTIVATION, normalizer=None, regularizer=None, collections=None):
         initializer = tf.initializers.variance_scaling(
             1.0, 'fan_in', 'normal', self.random_seed, self.dtype)
@@ -96,10 +92,11 @@ class SRN:
         last = slim.conv2d(last, channels, kernel, stride, 'SAME', format,
             1, activation, None, weights_initializer=initializer,
             weights_regularizer=regularizer, variables_collections=collections)
-        with tf.variable_scope('ResBlock'):
-            last = self.ResBlock(last, channels, format=format,
-                activation=activation, normalizer=normalizer,
-                regularizer=regularizer, collections=collections)
+        for i in range(resblocks):
+            with tf.variable_scope('ResBlock_{}'.format(i)):
+                last = self.ResBlock(last, channels, format=format,
+                    activation=activation, normalizer=normalizer,
+                    regularizer=regularizer, collections=collections)
         with tf.variable_scope('DenseConnection'):
             last = layers.SEUnit(last, channels, format, collections)
             if stride != 1 or stride != [1, 1]:
@@ -117,9 +114,10 @@ class SRN:
         stride1 = [1, 2]
         # model definition
         with tf.variable_scope(main_scope):
-            # state
+            # states
             self.g_training = tf.Variable(False, trainable=False, name='training',
                 collections=[tf.GraphKeys.GLOBAL_VARIABLES, tf.GraphKeys.MODEL_VARIABLES])
+            # function objects
             activation = self.generator_acti
             normalizer = lambda x: slim.batch_norm(x, 0.999, center=True, scale=False,
                 is_training=self.g_training, data_format=format, renorm=False)
@@ -127,37 +125,37 @@ class SRN:
             # network
             last = tf.identity(last, 'inputs')
             with tf.variable_scope('InBlock'):
-                last = self.InBlock(last, 64, [1, 7], [1, 1], format, activation,
+                last = self.InBlock(last, 32, [1, 7], [1, 1], format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_1'):
-                last = self.EBlock(last, 32, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 32, 0, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_2'):
-                last = self.EBlock(last, 32, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 32, 1, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_3'):
-                last = self.EBlock(last, 48, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 32, 1, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_4'):
-                last = self.EBlock(last, 48, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 48, 2, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_5'):
-                last = self.EBlock(last, 48, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 48, 2, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_6'):
-                last = self.EBlock(last, 48, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 48, 2, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_7'):
-                last = self.EBlock(last, 48, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 48, 3, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_8'):
-                last = self.EBlock(last, 48, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 64, 3, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_9'):
-                last = self.EBlock(last, 48, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 64, 3, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_10'):
-                last = self.EBlock(last, 48, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 64, 3, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('GlobalAveragePooling'):
                 last = tf.reduce_mean(last, [-2, -1] if format == 'NCHW' else [-3, -2])
@@ -189,26 +187,30 @@ class SRN:
         return last
 
     def build_g_loss(self, ref, pred):
+        self.g_log_losses = []
+        update_ops = []
         loss_key = self.generator_lkey
         with tf.variable_scope(loss_key):
             # softmax cross entropy
             cross_loss = tf.losses.softmax_cross_entropy(ref, pred, 1.0)
-            self.loss_sums.append(tf.summary.scalar('cross_loss', cross_loss))
+            update_ops.append(self.loss_summary('cross_loss', cross_loss, self.g_log_losses))
             # accuracy
             accuracy = tf.contrib.metrics.accuracy(
                 tf.argmax(ref, -1), tf.argmax(pred, -1))
-            self.loss_sums.append(tf.summary.scalar('accuracy', accuracy))
+            update_ops.append(self.loss_summary('accuracy', accuracy, self.g_log_losses))
             # total loss
             losses = tf.losses.get_losses(loss_key)
-            g_loss_main = tf.add_n(losses, 'g_loss_main')
+            g_main_loss = tf.add_n(losses, 'g_main_loss')
             # regularization loss
             g_reg_losses = tf.losses.get_regularization_losses('generator')
             g_reg_loss = tf.add_n(g_reg_losses)
-            tf.summary.scalar('g_reg_loss', g_reg_loss)
+            update_ops.append(self.loss_summary('g_reg_loss', g_reg_loss))
             # final loss
-            self.g_loss = g_loss_main + g_reg_loss
-            tf.summary.scalar('g_loss', self.g_loss)
-        return g_loss_main
+            self.g_loss = g_main_loss + g_reg_loss
+            update_ops.append(self.loss_summary('g_loss', self.g_loss))
+            # accumulate operator
+            with tf.control_dependencies(update_ops):
+                self.g_losses_acc = tf.no_op('g_losses_accumulator')
 
     def build_model(self, inputs=None):
         # inputs
@@ -236,9 +238,9 @@ class SRN:
         # build model
         self.build_model(inputs)
         # build generator loss
-        g_loss_main = self.build_g_loss(self.labels, self.outputs)
+        self.build_g_loss(self.labels, self.outputs)
         # return total loss
-        return self.g_loss, g_loss_main
+        return self.g_loss
 
     def train(self, global_step):
         # saving memory with gradient checkpoints
@@ -272,6 +274,29 @@ class SRN:
         with tf.control_dependencies(update_ops):
             g_train_op = tf.no_op('g_train')
         return g_train_op
+
+    def loss_summary(self, name, loss, collection=None):
+        with tf.variable_scope('loss_summary/' + name):
+            # internal variables
+            loss_sum = tf.get_variable('sum', (), tf.float32, tf.initializers.zeros(tf.float32))
+            loss_count = tf.get_variable('count', (), tf.float32, tf.initializers.zeros(tf.float32))
+            # accumulate to sum and count
+            acc_sum = loss_sum.assign_add(loss, True)
+            acc_count = loss_count.assign_add(1.0, True)
+            # calculate mean
+            loss_mean = tf.divide(loss_sum, loss_count, 'mean')
+            if collection is not None:
+                collection.append(loss_mean)
+            # reset sum and count
+            with tf.control_dependencies([loss_mean]):
+                clear_sum = loss_sum.assign(0.0, True)
+                clear_count = loss_count.assign(0.0, True)
+            # log summary
+            with tf.control_dependencies([clear_sum, clear_count]):
+                self.loss_sums.append(tf.summary.scalar(name, loss_mean))
+            # return after updating sum and count
+            with tf.control_dependencies([acc_sum, acc_count]):
+                return tf.identity(loss, 'loss')
 
     def get_summaries(self):
         all_summary = tf.summary.merge_all()

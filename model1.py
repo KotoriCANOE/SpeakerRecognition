@@ -189,26 +189,30 @@ class SRN:
         return last
 
     def build_g_loss(self, ref, pred):
+        self.g_log_losses = []
+        update_ops = []
         loss_key = self.generator_lkey
         with tf.variable_scope(loss_key):
             # softmax cross entropy
             cross_loss = tf.losses.softmax_cross_entropy(ref, pred, 1.0)
-            self.loss_sums.append(tf.summary.scalar('cross_loss', cross_loss))
+            update_ops.append(self.loss_summary('cross_loss', cross_loss, self.g_log_losses))
             # accuracy
             accuracy = tf.contrib.metrics.accuracy(
                 tf.argmax(ref, -1), tf.argmax(pred, -1))
-            self.loss_sums.append(tf.summary.scalar('accuracy', accuracy))
+            update_ops.append(self.loss_summary('accuracy', accuracy, self.g_log_losses))
             # total loss
             losses = tf.losses.get_losses(loss_key)
-            g_loss_main = tf.add_n(losses, 'g_loss_main')
+            g_main_loss = tf.add_n(losses, 'g_main_loss')
             # regularization loss
             g_reg_losses = tf.losses.get_regularization_losses('generator')
             g_reg_loss = tf.add_n(g_reg_losses)
-            tf.summary.scalar('g_reg_loss', g_reg_loss)
+            update_ops.append(self.loss_summary('g_reg_loss', g_reg_loss))
             # final loss
-            self.g_loss = g_loss_main + g_reg_loss
-            tf.summary.scalar('g_loss', self.g_loss)
-        return g_loss_main
+            self.g_loss = g_main_loss + g_reg_loss
+            update_ops.append(self.loss_summary('g_loss', self.g_loss))
+            # accumulate operator
+            with tf.control_dependencies(update_ops):
+                self.g_losses_acc = tf.no_op('g_losses_accumulator')
 
     def build_model(self, inputs=None):
         # inputs
@@ -236,14 +240,14 @@ class SRN:
         # build model
         self.build_model(inputs)
         # build generator loss
-        g_loss_main = self.build_g_loss(self.labels, self.outputs)
+        self.build_g_loss(self.labels, self.outputs)
         # return total loss
-        return self.g_loss, g_loss_main
+        return self.g_loss
 
     def train(self, global_step):
         # saving memory with gradient checkpoints
-        self.set_reuse_checkpoints()
-        g_ckpt = tf.get_collection('checkpoints', 'generator')
+        #self.set_reuse_checkpoints()
+        #g_ckpt = tf.get_collection('checkpoints', 'generator')
         # dependencies to be updated
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         # learning rate
@@ -272,6 +276,29 @@ class SRN:
         with tf.control_dependencies(update_ops):
             g_train_op = tf.no_op('g_train')
         return g_train_op
+
+    def loss_summary(self, name, loss, collection=None):
+        with tf.variable_scope('loss_summary/' + name):
+            # internal variables
+            loss_sum = tf.get_variable('sum', (), tf.float32, tf.initializers.zeros(tf.float32))
+            loss_count = tf.get_variable('count', (), tf.float32, tf.initializers.zeros(tf.float32))
+            # accumulate to sum and count
+            acc_sum = loss_sum.assign_add(loss, True)
+            acc_count = loss_count.assign_add(1.0, True)
+            # calculate mean
+            loss_mean = tf.divide(loss_sum, loss_count, 'mean')
+            if collection is not None:
+                collection.append(loss_mean)
+            # reset sum and count
+            with tf.control_dependencies([loss_mean]):
+                clear_sum = loss_sum.assign(0.0, True)
+                clear_count = loss_count.assign(0.0, True)
+            # log summary
+            with tf.control_dependencies([clear_sum, clear_count]):
+                self.loss_sums.append(tf.summary.scalar(name, loss_mean))
+            # return after updating sum and count
+            with tf.control_dependencies([acc_sum, acc_count]):
+                return tf.identity(loss, 'loss')
 
     def get_summaries(self):
         all_summary = tf.summary.merge_all()

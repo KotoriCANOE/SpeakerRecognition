@@ -108,21 +108,72 @@ EBlock kernel: 1x4 => 1x3
 
 ## 19
 
-InBlock: 64
-EBlock: 2*32+8*48
+InBlock/channels: 64
+EBlock/channels: 32, 32, 48, 48, 48, 48, 48, 48, 48, 48
 - performance improvement
 
 ## 20
 
+(EBlock: act -> conv -> act -> conv -> ResBlock -> SEUnit +Dense)
 Activation: Swish
 - significantly improved performance
 
 ## 21
 
+(EBlock: act -> conv -> act -> conv -> act -> ResBlock -> SEUnit +Dense)
 (furthur) EBlock: added activation after 2nd conv
 - slight improvement (require furthur investigation)
 
 ## 22
 
+(EBlock: conv -> act -> conv -> act -> ResBlock -> SEUnit +Dense)
 (furthur) EBlock: removed activation before 1st conv
 - accuracy reaches 1 after 56k steps, but is lower before that
+
+## 23
+
+(EBlock: conv -> act -> conv -> act -> ResBlock -> SEUnit +Dense)
+validation size: 32 => 256
+- validation loss close to training loss
+
+## 24
+
+(unchanged)
+(EBlock: act -> conv -> act -> conv -> ResBlock -> SEUnit +Dense)
+validation size: 32 => 256
+- overfitting: validation loss lower than training loss
+
+## 25
+
+(unchanged)
+(EBlock: act -> conv -> act -> conv -> act -> ResBlock -> SEUnit +Dense)
+improved loss summary logging and TensorBoard visualization
+- overfitting: validation loss significantly lower than training loss
+
+## 26
+
+(EBlock: conv -> act -> conv -> act -> ResBlock -> SEUnit +Dense)
+InBlock: removed ResBlock
+
+## 27
+
+EBlocks/ResBlocks: 0, 1, 1, 2, 2, 2, 3, 3, 3, 3
+
+## 28
+
+InBlocks/channels: 32
+EBlocks/channels: 16, 32, 32, 48, 48, 48, 64, 64, 64, 64
+
+## 29
+
+InBlocks/channels: 32
+EBlocks/channels: 32, 32, 32, 48, 48, 48, 48, 64, 64, 64
+
+## 30
+
+out-channels: 256 => 512
+
+## 31
+
+fixed incorrect loss logging and summary
+
