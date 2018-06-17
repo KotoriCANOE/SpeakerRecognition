@@ -84,14 +84,14 @@ class SRN:
             1.0, 'fan_in', 'normal', self.random_seed, self.dtype)
         skip = last
         in_channels = skip.get_shape()[-3 if format == 'NCHW' else -1]
-        #if activation: last = activation(last)
+        if activation: last = activation(last)
         if in_channels > channels:
             last = slim.conv2d(last, channels,
                 [1, 1], [1, 1], 'SAME', format,
                 1, activation, None, weights_initializer=initializer,
                 weights_regularizer=regularizer, variables_collections=collections)
         last = slim.conv2d(last, channels, kernel, stride, 'SAME', format,
-            1, activation, None, weights_initializer=initializer,
+            1, None, None, weights_initializer=initializer,
             weights_regularizer=regularizer, variables_collections=collections)
         for i in range(resblocks):
             with tf.variable_scope('ResBlock_{}'.format(i)):

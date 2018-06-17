@@ -132,24 +132,24 @@ Activation: Swish
 
 ## 23
 
-(EBlock: conv -> act -> conv -> act -> ResBlock -> SEUnit +Dense)
+EBlock: conv -> act -> conv -> act -> ResBlock -> SEUnit +Dense
 validation size: 32 => 256
 
 ## 24
 
 (unchanged)
-(EBlock: act -> conv -> act -> conv -> ResBlock -> SEUnit +Dense)
+EBlock: act -> conv -> act -> conv -> ResBlock -> SEUnit +Dense
 validation size: 32 => 256
 
 ## 25
 
 (unchanged)
-(EBlock: act -> conv -> act -> conv -> act -> ResBlock -> SEUnit +Dense)
+EBlock: act -> conv -> act -> conv -> act -> ResBlock -> SEUnit +Dense
 improved loss summary logging and TensorBoard visualization
 
 ## 26
 
-(EBlock: conv -> act -> conv -> act -> ResBlock -> SEUnit +Dense)
+EBlock: conv -> act -> conv -> act -> ResBlock -> SEUnit +Dense
 InBlock: removed ResBlock
 
 ## 27
@@ -181,4 +181,26 @@ fixed incorrect loss logging and summary
 ## 33
 
 fixed unintended behaviour in logging steps: duplicate forward/backward passes
+EBlock: act -> conv -> act -> conv -> ResBlock -> SEUnit +Dense
+- better performance than post-activation
+
+## 34
+
+(unchanged) EBlock: bn -> act -> conv -> act -> conv -> ResBlock -> SEUnit +Dense
+
+## 35
+
+(unchanged) EBlock: act -> conv -> bn -> act -> conv -> ResBlock -> SEUnit +Dense
+
+## 36
+
+(unchanged) Batch Renorm
+
+## 37
+
+(unchanged) generator-wd: 1e-6 => 1e-5
+
+## 38
+
+(unchanged) removed Batch Norm
 

@@ -61,26 +61,35 @@ class Data:
             .format(len(self.main_set), self.epoch_steps, self.num_epochs, self.max_steps))
 
     @staticmethod
+    def data_manipulation(data):
+        # smoothing
+        # add noise
+        # random amplitude
+        data *= 0.1 ** np.random.uniform(0, 3) # 0~-30 dB
+        # return
+        return data
+
+    @staticmethod
     def process_sample(id_, file, num_labels):
         # parameters
         slice_duration = 2000
         # read from file
         audio = AudioSegment.from_file(file)
         #channels = audio.channels
-        #sample_bytes = audio.frame_width
         sample_rate = audio.frame_rate
-        #duration = int(audio.duration_seconds * 1000)
-        #samples = int(audio.frame_count())
         slice_samples = slice_duration * sample_rate // 1000
         # to np.array
         data = np.array(audio.get_array_of_samples(), copy=False)
         samples = data.shape[-1]
         # slice
-        start = random.randint(0, samples - slice_samples)
-        data = data[start : start + slice_samples]
+        if samples > slice_samples:
+            start = random.randint(0, samples - slice_samples)
+            data = data[start : start + slice_samples]
         # normalization
         norm_factor = 1 / audio.max
         data = data.astype(np.float32) * norm_factor
+        # random data manipulation
+        #data = Data.data_manipulation(data)
         # convert to CHW format
         data = np.expand_dims(np.expand_dims(data, 0), 0)
         # one-hot label
