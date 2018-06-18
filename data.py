@@ -1,5 +1,6 @@
 from pydub import AudioSegment
 import numpy as np
+from scipy import ndimage
 import os
 import random
 from utils import eprint, listdir_files
@@ -61,15 +62,6 @@ class Data:
             .format(len(self.main_set), self.epoch_steps, self.num_epochs, self.max_steps))
 
     @staticmethod
-    def data_manipulation(data):
-        # smoothing
-        # add noise
-        # random amplitude
-        data *= 0.1 ** np.random.uniform(0, 3) # 0~-30 dB
-        # return
-        return data
-
-    @staticmethod
     def process_sample(id_, file, num_labels):
         # parameters
         slice_duration = 2000
@@ -89,7 +81,7 @@ class Data:
         norm_factor = 1 / audio.max
         data = data.astype(np.float32) * norm_factor
         # random data manipulation
-        #data = Data.data_manipulation(data)
+        data = DataPP.process(data)
         # convert to CHW format
         data = np.expand_dims(np.expand_dims(data, 0), 0)
         # one-hot label
@@ -160,3 +152,45 @@ class Data:
     def get_val(self, start=0):
         return self._gen_batches(self.val_set, self.val_steps, 1,
             start, False)
+
+class DataPP:
+    @classmethod
+    def process(cls, data):
+        # smoothing
+        smooth_prob = 0.5
+        smooth_std = 0.75
+        if cls.active_prob(smooth_prob):
+            smooth_scale = cls.truncate_normal(smooth_std)
+            data = ndimage.gaussian_filter1d(data, smooth_scale, truncate=2.0)
+        # add noise
+        noise_prob = 0.8
+        noise_std = 0.025
+        noise_smooth_prob = 0.7
+        noise_smooth_std = 1.0
+        if cls.active_prob(noise_prob):
+            # Gaussian noise
+            noise_scale = cls.truncate_normal(noise_std)
+            noise = np.random.normal(0.0, noise_scale, data.shape)
+            # noise smoothing
+            if cls.active_prob(noise_smooth_prob):
+                smooth_scale = cls.truncate_normal(noise_smooth_std)
+                noise = ndimage.gaussian_filter1d(noise, smooth_scale, truncate=2.0)
+            # add noise
+            data += noise
+        # random amplitude
+        data *= 0.1 ** np.random.uniform(0, 2) # 0~-20 dB
+        # return
+        return data
+
+    @staticmethod
+    def active_prob(prob):
+        return np.random.uniform(0, 1) < prob
+
+    @staticmethod
+    def truncate_normal(std, mean=0.0, max_rate=4.0):
+        max_scale = std * max_rate
+        scale = max_scale + 1.0
+        while scale > max_scale:
+            scale = np.abs(np.random.normal(0.0, std))
+        scale += mean
+        return scale

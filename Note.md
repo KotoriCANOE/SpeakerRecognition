@@ -204,3 +204,13 @@ EBlock: act -> conv -> act -> conv -> ResBlock -> SEUnit +Dense
 
 (unchanged) removed Batch Norm
 
+## 39
+
+Data: added random Gaussian noise
+Data: random amplitude
+
+## 40
+
+Data: added smoothing
+Data: added more randomness and smoothing to noise generation
+
