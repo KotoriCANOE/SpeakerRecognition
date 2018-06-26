@@ -214,3 +214,11 @@ Data: random amplitude
 Data: added smoothing
 Data: added more randomness and smoothing to noise generation
 
+## 41
+
+Data: added multi-step noise addition
+
+## 42
+
+(unchanged) lr exponential decay: 250 steps 0.99 rate
+

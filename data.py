@@ -163,11 +163,11 @@ class DataPP:
             smooth_scale = cls.truncate_normal(smooth_std)
             data = ndimage.gaussian_filter1d(data, smooth_scale, truncate=2.0)
         # add noise
-        noise_prob = 0.8
+        noise_prob = 0.7
         noise_std = 0.025
-        noise_smooth_prob = 0.7
-        noise_smooth_std = 1.0
-        if cls.active_prob(noise_prob):
+        noise_smooth_prob = 0.8
+        noise_smooth_std = 1.5
+        while cls.active_prob(noise_prob):
             # Gaussian noise
             noise_scale = cls.truncate_normal(noise_std)
             noise = np.random.normal(0.0, noise_scale, data.shape)
