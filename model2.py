@@ -35,7 +35,7 @@ class SRN:
         # internal parameters
         self.input_shape = [None] * 4
         self.input_shape[-3 if self.data_format == 'NCHW' else -1] = self.in_channels
-        self.output_shape = [None, self.out_channels]
+        self.output_shape = [None]
         # create a moving average object for trainable variables
         if self.var_ema > 0:
             self.ema = tf.train.ExponentialMovingAverage(self.var_ema)
@@ -120,8 +120,9 @@ class SRN:
                 collections=[tf.GraphKeys.GLOBAL_VARIABLES, tf.GraphKeys.MODEL_VARIABLES])
             # function objects
             activation = self.generator_acti
-            normalizer = lambda x: slim.batch_norm(x, 0.999, center=True, scale=False,
-                is_training=self.g_training, data_format=format, renorm=False)
+            normalizer = None
+            # normalizer = lambda x: slim.batch_norm(x, 0.999, center=True, scale=False,
+            #     is_training=self.g_training, data_format=format, renorm=False)
             regularizer = slim.l2_regularizer(self.generator_wd)
             # network
             last = tf.identity(last, 'inputs')
@@ -187,18 +188,23 @@ class SRN:
                     **{var.op.name: var for var in self.g_mvars}}
         return last
 
-    def build_g_loss(self, ref, pred):
+    def build_g_loss(self, labels, embeddings, margin=0.5):
+        from triplet_loss import batch_hard
         self.g_log_losses = []
         update_ops = []
         loss_key = self.generator_lkey
         with tf.variable_scope(loss_key):
-            # softmax cross entropy
-            cross_loss = tf.losses.softmax_cross_entropy(ref, pred, 1.0)
-            update_ops.append(self.loss_summary('cross_loss', cross_loss, self.g_log_losses))
-            # accuracy
-            accuracy = tf.contrib.metrics.accuracy(
-                tf.argmax(ref, -1), tf.argmax(pred, -1))
-            update_ops.append(self.loss_summary('accuracy', accuracy, self.g_log_losses))
+            # # softmax cross entropy
+            # cross_loss = tf.losses.softmax_cross_entropy(ref, pred, 1.0)
+            # update_ops.append(self.loss_summary('cross_loss', cross_loss, self.g_log_losses))
+            # # accuracy
+            # accuracy = tf.contrib.metrics.accuracy(
+            #     tf.argmax(ref, -1), tf.argmax(pred, -1))
+            # update_ops.append(self.loss_summary('accuracy', accuracy, self.g_log_losses))
+            # triplet loss
+            triplet_loss = batch_hard(labels, embeddings, margin)
+            tf.losses.add_loss(triplet_loss)
+            update_ops.append(self.loss_summary('triplet_loss', triplet_loss, self.g_log_losses))
             # total loss
             losses = tf.losses.get_losses(loss_key)
             g_main_loss = tf.add_n(losses, 'g_main_loss')
