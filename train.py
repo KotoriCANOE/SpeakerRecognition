@@ -157,7 +157,7 @@ class Train:
                 tf.initializers.local_variables())
             sess.run(initializers)
         # profiler
-        profile_offset = 1000 + self.log_frequency // 2
+        profile_offset = 100 + self.log_frequency // 2
         profile_step = 10000
         builder = tf.profiler.ProfileOptionBuilder
         profiler = tf.profiler.Profiler(sess.graph)

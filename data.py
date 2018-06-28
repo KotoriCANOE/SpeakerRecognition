@@ -30,6 +30,26 @@ class Data:
         argp.add_argument('--prefetch', type=int, default=64)
         argp.add_argument('--buffer-size', type=int, default=1024)
 
+    @staticmethod
+    def group_shuffle(dataset, batch_size, shuffle=False):
+        if shuffle:
+            random.shuffle(dataset)
+        upper = len(dataset)
+        batch_groups = batch_size // 2
+        for i in range(0, upper, batch_size):
+            j = i + batch_groups
+            ids = [d[0] for d in dataset[i : j]]
+            for k in range(j, upper):
+                data = dataset[k]
+                if data[0] in ids:
+                    ids.remove(data[0])
+                    dataset[k] = dataset[j]
+                    dataset[j] = data
+                    j += 1
+                    if j >= i + batch_size:
+                        break
+        return dataset
+
     def get_files(self, num_ids=None):
         dataset_ids = os.listdir(self.dataset)[:num_ids]
         num_ids = len(dataset_ids)
@@ -81,28 +101,31 @@ class Data:
         norm_factor = 1 / audio.max
         data = data.astype(np.float32) * norm_factor
         # random data manipulation
-        data = DataPP.process(data)
+        # data = DataPP.process(data)
         # convert to CHW format
         data = np.expand_dims(np.expand_dims(data, 0), 0)
+        # label
+        label = np.array(id_, dtype=np.int64)
         # return
-        return data, id_
+        return data, label
 
-    def extract_batch(self, batch_set):
+    @classmethod
+    def extract_batch(cls, batch_set, threads=1):
         from concurrent.futures import ThreadPoolExecutor
         # initialize
         inputs = []
         labels = []
         # load all the data
-        if self.threads == 1:
+        if threads == 1:
             for id_, file in batch_set:
-                _input, _label = Data.process_sample(id_, file)
+                _input, _label = cls.process_sample(id_, file)
                 inputs.append(_input)
                 labels.append(_label)
         else:
-            with ThreadPoolExecutor(self.threads) as executor:
+            with ThreadPoolExecutor(threads) as executor:
                 futures = []
                 for id_, file in batch_set:
-                    futures.append(executor.submit(Data.process_sample, id_, file))
+                    futures.append(executor.submit(cls.process_sample, id_, file))
                 # final data
                 for future in futures:
                     _input, _label = future.result()
@@ -112,36 +135,6 @@ class Data:
         inputs = np.stack(inputs)
         labels = np.stack(labels)
         return inputs, labels
-
-    @staticmethod
-    def group_shuffle(dataset, batch_size, shuffle=False):
-        if shuffle:
-            random.shuffle(dataset)
-        upper = len(dataset)
-        # group_size = 2
-        # for i in range(0, upper, group_size):
-        #     id_ = dataset[i][0]
-        #     for j in range(i + 1, i + group_size):
-        #         for k in range(j, upper):
-        #             data = dataset[k]
-        #             if data[0] == id_:
-        #                 dataset[k] = dataset[j]
-        #                 dataset[j] = data
-        #                 break
-        batch_groups = batch_size // 2
-        for i in range(0, upper, batch_size):
-            j = i + batch_groups
-            ids = [d[0] for d in dataset[i : j]]
-            for k in range(j, upper):
-                data = dataset[k]
-                if data[0] in ids:
-                    ids.remove(data[0])
-                    dataset[k] = dataset[j]
-                    dataset[j] = data
-                    j += 1
-                    if j >= i + batch_size:
-                        break
-        return dataset
 
     def _gen_batches(self, dataset, epoch_steps, num_epochs=1, start=0,
         shuffle=False):
@@ -164,7 +157,7 @@ class Data:
                     offset = step * self.batch_size
                     upper = min(len(_dataset), offset + self.batch_size)
                     batch_set = _dataset[offset : upper]
-                    futures.append(executor.submit(self.extract_batch, batch_set))
+                    futures.append(executor.submit(self.extract_batch, batch_set, self.threads))
                     # yield the data beyond prefetch range
                     while len(futures) >= self.prefetch:
                         future = futures.pop(0)
