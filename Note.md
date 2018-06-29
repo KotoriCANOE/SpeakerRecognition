@@ -222,3 +222,30 @@ Data: added multi-step noise addition
 
 (unchanged) lr exponential decay: 250 steps 0.99 rate
 
+---
+
+## 100
+
+used Triplet Loss (batch_hard)
+
+## 101
+
+EBlocks/channels: 32, 32, 32, 32, 32, 32, 32
+out-channels: 128
+
+## 102
+
+used Triplet Loss (batch_all)
+
+## 103
+
+EBlocks/channels: 32, 32, 32, 48, 48, 48, 48, 64, 64, 64
+out-channels: 256
+
+## 104
+
+Triplet Loss - margin: 0.5 => 1.0
+
+## 105
+
+Triplet Loss - margin: 1.0 => 2.0

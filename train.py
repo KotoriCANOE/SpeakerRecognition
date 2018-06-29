@@ -105,18 +105,18 @@ class Train:
         if logging:
             # loss summary
             fetch = [self.loss_summary] + self.model.g_log_losses
-            summary, train_loss = sess.run(fetch)
-            self.train_writer.add_summary(summary, global_step)
+            train_ret = sess.run(fetch)
+            self.train_writer.add_summary(train_ret[0], global_step)
             # logging
             time_current = time.time()
             duration = time_current - self.log_last
             self.log_last = time_current
             sec_batch = duration / self.log_frequency if self.log_frequency > 0 else 0
             samples_sec = self.batch_size / sec_batch
-            train_log = ('{}: epoch {}, step {}, train loss: {:.5}'
+            train_log = ('{}: epoch {}, step {}, train loss: {:.5}, fraction: {:.5}'
                 ' ({:.1f} samples/sec, {:.3f} sec/batch)'
                 .format(datetime.now(), epoch, global_step,
-                    train_loss, samples_sec, sec_batch))
+                    *train_ret[1:], samples_sec, sec_batch))
             eprint(train_log)
         # validation
         if logging:
@@ -126,16 +126,16 @@ class Train:
                 sess.run(fetch, feed_dict)
             # loss summary
             fetch = [self.loss_summary] + self.model.g_log_losses
-            summary, val_loss = sess.run(fetch)
-            self.val_writer.add_summary(summary, global_step)
+            val_ret = sess.run(fetch)
+            self.val_writer.add_summary(val_ret[0], global_step)
             # logging
-            val_log = ('{}: epoch {}, step {}, val loss: {:.5}'
-                .format(datetime.now(), epoch, global_step, val_loss))
+            val_log = ('{}: epoch {}, step {}, val loss: {:.5}, fraction: {:.5}'
+                .format(datetime.now(), epoch, global_step, *val_ret[1:]))
             eprint(val_log)
         # log result for the last step
         if self.log_file and last_step:
-            last_log = ('epoch {}, step {}, train loss: {:.5}, val loss: {:.5}'
-                .format(epoch, global_step, train_loss, val_loss))
+            last_log = ('epoch {}, step {}, train loss: {:.5}, val loss: {:.5}, fraction: {:.5}'
+                .format(epoch, global_step, train_ret[1], *val_ret[1:]))
             with open(self.log_file, 'a', encoding='utf-8') as fd:
                 fd.write('Training No.{}\n'.format(self.postfix))
                 fd.write(self.train_dir + '\n')
@@ -252,7 +252,7 @@ def main(argv=None):
     argp.add_argument('--dtype', type=int, default=2)
     argp.add_argument('--data-format', default='NCHW')
     argp.add_argument('--in-channels', type=int, default=1)
-    argp.add_argument('--out-channels', type=int, default=128)
+    argp.add_argument('--out-channels', type=int, default=256)
     # pre-processing parameters
     Data.add_arguments(argp)
     # model parameters

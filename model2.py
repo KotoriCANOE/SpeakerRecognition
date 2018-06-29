@@ -19,6 +19,8 @@ class SRN:
         self.random_seed = None
         self.dropout = 0.5
         self.var_ema = 0.999
+        # loss parameters
+        self.triplet_margin = 1.0
         # generator parameters
         self.generator_acti = ACTIVATION
         self.generator_wd = 1e-6
@@ -48,6 +50,8 @@ class SRN:
         argp.add_argument('--generator-wd', type=float, default=1e-6)
         argp.add_argument('--generator-lr', type=float, default=1e-3)
         argp.add_argument('--generator-lr-step', type=int, default=1000)
+        # loss parameters
+        argp.add_argument('--triplet-margin', type=float, default=1.0)
 
     def ResBlock(self, last, channels, kernel=[1, 3], stride=[1, 1], biases=True, format=DATA_FORMAT,
         dilate=1, activation=ACTIVATION, normalizer=None,
@@ -138,46 +142,46 @@ class SRN:
             with tf.variable_scope('EBlock_3'):
                 last = self.EBlock(last, 32, 1, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
-            with tf.variable_scope('EBlock_4'):
-                last = self.EBlock(last, 32, 2, kernel1, stride1, format, activation,
-                    normalizer, regularizer, var_key)
-            with tf.variable_scope('EBlock_5'):
-                last = self.EBlock(last, 32, 2, kernel1, stride1, format, activation,
-                    normalizer, regularizer, var_key)
-            with tf.variable_scope('EBlock_6'):
-                last = self.EBlock(last, 32, 3, kernel1, stride1, format, activation,
-                    normalizer, regularizer, var_key)
-            with tf.variable_scope('EBlock_7'):
-                last = self.EBlock(last, 32, 3, kernel1, stride1, format, activation,
-                    normalizer, regularizer, var_key)
             # with tf.variable_scope('EBlock_4'):
-            #     last = self.EBlock(last, 48, 2, kernel1, stride1, format, activation,
+            #     last = self.EBlock(last, 32, 2, kernel1, stride1, format, activation,
             #         normalizer, regularizer, var_key)
             # with tf.variable_scope('EBlock_5'):
-            #     last = self.EBlock(last, 48, 2, kernel1, stride1, format, activation,
+            #     last = self.EBlock(last, 32, 2, kernel1, stride1, format, activation,
             #         normalizer, regularizer, var_key)
             # with tf.variable_scope('EBlock_6'):
-            #     last = self.EBlock(last, 48, 2, kernel1, stride1, format, activation,
+            #     last = self.EBlock(last, 32, 3, kernel1, stride1, format, activation,
             #         normalizer, regularizer, var_key)
             # with tf.variable_scope('EBlock_7'):
-            #     last = self.EBlock(last, 48, 3, kernel1, stride1, format, activation,
+            #     last = self.EBlock(last, 32, 3, kernel1, stride1, format, activation,
             #         normalizer, regularizer, var_key)
-            # with tf.variable_scope('EBlock_8'):
-            #     last = self.EBlock(last, 64, 3, kernel1, stride1, format, activation,
-            #         normalizer, regularizer, var_key)
-            # with tf.variable_scope('EBlock_9'):
-            #     last = self.EBlock(last, 64, 3, kernel1, stride1, format, activation,
-            #         normalizer, regularizer, var_key)
-            # with tf.variable_scope('EBlock_10'):
-            #     last = self.EBlock(last, 64, 3, kernel1, stride1, format, activation,
-            #         normalizer, regularizer, var_key)
+            with tf.variable_scope('EBlock_4'):
+                last = self.EBlock(last, 48, 2, kernel1, stride1, format, activation,
+                    normalizer, regularizer, var_key)
+            with tf.variable_scope('EBlock_5'):
+                last = self.EBlock(last, 48, 2, kernel1, stride1, format, activation,
+                    normalizer, regularizer, var_key)
+            with tf.variable_scope('EBlock_6'):
+                last = self.EBlock(last, 48, 2, kernel1, stride1, format, activation,
+                    normalizer, regularizer, var_key)
+            with tf.variable_scope('EBlock_7'):
+                last = self.EBlock(last, 48, 3, kernel1, stride1, format, activation,
+                    normalizer, regularizer, var_key)
+            with tf.variable_scope('EBlock_8'):
+                last = self.EBlock(last, 64, 3, kernel1, stride1, format, activation,
+                    normalizer, regularizer, var_key)
+            with tf.variable_scope('EBlock_9'):
+                last = self.EBlock(last, 64, 3, kernel1, stride1, format, activation,
+                    normalizer, regularizer, var_key)
+            with tf.variable_scope('EBlock_10'):
+                last = self.EBlock(last, 64, 3, kernel1, stride1, format, activation,
+                    normalizer, regularizer, var_key)
             with tf.variable_scope('GlobalAveragePooling'):
                 last = tf.reduce_mean(last, [-2, -1] if format == 'NCHW' else [-3, -2])
             with tf.variable_scope('FCBlock'):
                 skip = last
-                last = slim.fully_connected(last, 256, activation, None,
+                last = slim.fully_connected(last, 512, activation, None,
                     weights_regularizer=regularizer, variables_collections=var_key)
-                last = slim.fully_connected(last, 256, None, None,
+                last = slim.fully_connected(last, 512, None, None,
                     weights_regularizer=regularizer, variables_collections=var_key)
                 last += skip
             with tf.variable_scope('OutBlock'):
@@ -200,18 +204,18 @@ class SRN:
                     **{var.op.name: var for var in self.g_mvars}}
         return last
 
-    def build_g_loss(self, labels, embeddings, margin=0.5):
+    def build_g_loss(self, labels, embeddings):
         from triplet_loss import batch_all
         self.g_log_losses = []
         update_ops = []
         loss_key = self.generator_lkey
         with tf.variable_scope(loss_key):
             # triplet loss
-            triplet_loss, fraction = batch_all(labels, embeddings, margin)
+            triplet_loss, fraction = batch_all(labels, embeddings, self.triplet_margin)
             tf.losses.add_loss(triplet_loss)
             update_ops.append(self.loss_summary('triplet_loss', triplet_loss, self.g_log_losses))
-            update_ops.append(self.loss_summary('fraction_positive_triplets', fraction))
-            # triplet_loss = batch_hard(labels, embeddings, margin)
+            update_ops.append(self.loss_summary('fraction_positive_triplets', fraction, self.g_log_losses))
+            # triplet_loss = batch_hard(labels, embeddings, self.triplet_margin)
             # tf.losses.add_loss(triplet_loss)
             # update_ops.append(self.loss_summary('triplet_loss', triplet_loss, self.g_log_losses))
             # total loss
