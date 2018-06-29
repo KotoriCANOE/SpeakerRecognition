@@ -14,10 +14,10 @@ def subfunc(ipath, opath, d, ffmpeg='ffmpeg', iext='.m4a', oext='.wav'):
             os.makedirs(save_path)
         elif os.path.exists(ofile):
             continue
-        cmdline = '"{}" -y -i "{}" -vn -c:a pcm_s16le {}'.format(
+        cmdline = '{} -y -i {} -vn -c:a pcm_s16le {}'.format(
             ffmpeg, ifile, ofile)
         std_redirect = subprocess.PIPE
-        subprocess.run(cmdline, stdout=std_redirect, stderr=std_redirect)
+        subprocess.run(cmdline.split(), stdout=std_redirect, stderr=std_redirect)
 
 def convert(ipath, opath, threads=4):
     dataset_ids = os.listdir(ipath)
@@ -25,9 +25,13 @@ def convert(ipath, opath, threads=4):
     ids = [re.findall(regex, i) for i in dataset_ids]
     dataset_ids = [(int(i[0]), os.path.join(ipath, d)) for i, d
         in zip(ids, dataset_ids) if i and i[0].isnumeric()]
-    with ThreadPoolExecutor(threads) as executor:
+    if threads == 1:
         for i, d in dataset_ids:
-            executor.submit(subfunc, ipath, opath, d)
+            subfunc(ipath, opath, d)
+    else:
+        with ThreadPoolExecutor(threads) as executor:
+            for i, d in dataset_ids:
+                executor.submit(subfunc, ipath, opath, d)
 
 def main(argv):
     import argparse
