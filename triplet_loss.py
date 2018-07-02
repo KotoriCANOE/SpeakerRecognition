@@ -119,4 +119,4 @@ def batch_hard(labels, embeddings, margin, squared=False):
     # get final mean triplet loss
     triplet_loss = tf.reduce_mean(triplet_loss)
     # return
-    return triplet_loss
+    return triplet_loss, 0

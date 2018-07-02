@@ -51,7 +51,7 @@ class SRN:
         argp.add_argument('--generator-lr', type=float, default=1e-3)
         argp.add_argument('--generator-lr-step', type=int, default=1000)
         # loss parameters
-        argp.add_argument('--triplet-margin', type=float, default=1.0)
+        argp.add_argument('--triplet-margin', type=float, default=2.0)
 
     def ResBlock(self, last, channels, kernel=[1, 3], stride=[1, 1], biases=True, format=DATA_FORMAT,
         dilate=1, activation=ACTIVATION, normalizer=None,
@@ -205,13 +205,14 @@ class SRN:
         return last
 
     def build_g_loss(self, labels, embeddings):
-        from triplet_loss import batch_all
+        from triplet_loss import batch_all, batch_hard
         self.g_log_losses = []
         update_ops = []
         loss_key = self.generator_lkey
         with tf.variable_scope(loss_key):
             # triplet loss
-            triplet_loss, fraction = batch_all(labels, embeddings, self.triplet_margin)
+            #triplet_loss, fraction = batch_all(labels, embeddings, self.triplet_margin)
+            triplet_loss, fraction = batch_hard(labels, embeddings, self.triplet_margin)
             tf.losses.add_loss(triplet_loss)
             update_ops.append(self.loss_summary('triplet_loss', triplet_loss, self.g_log_losses))
             update_ops.append(self.loss_summary('fraction_positive_triplets', fraction, self.g_log_losses))

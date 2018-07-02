@@ -249,3 +249,22 @@ Triplet Loss - margin: 0.5 => 1.0
 ## 105
 
 Triplet Loss - margin: 1.0 => 2.0
+
+## 106
+
+out-channels: 64
+
+## 107
+
+(unchanged) out-channels: 128
+
+## 108
+
+out-channels: 64
+Used batch_semi_hard
+
+## 109
+
+out-channels: 128
+Used batch_semi_hard
+

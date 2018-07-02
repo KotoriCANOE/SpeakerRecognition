@@ -147,16 +147,17 @@ class Train:
         import time
         # restore from checkpoint
         if self.restore and os.path.exists(os.path.join(self.train_dir, 'checkpoint')):
-            lastest_ckpt = tf.train.latest_checkpoint(self.train_dir, 'checkpoint')
-            self.saver_ckpt.restore(sess, lastest_ckpt)
-        # restore pre-trained model
-        elif self.pretrain_dir:
-            self.saver_pt.restore(sess, os.path.join(self.pretrain_dir, 'model'))
+            latest_ckpt = tf.train.latest_checkpoint(self.train_dir, 'checkpoint')
+            self.saver_ckpt.restore(sess, latest_ckpt)
         # otherwise, initialize from start
         else:
             initializers = (tf.initializers.global_variables(),
                 tf.initializers.local_variables())
             sess.run(initializers)
+        # restore pre-trained model
+        if self.pretrain_dir:
+            latest_ckpt = tf.train.latest_checkpoint(self.pretrain_dir, 'checkpoint')
+            self.saver_pt.restore(sess, latest_ckpt)
         # profiler
         profile_offset = 100 + self.log_frequency // 2
         profile_step = 10000
@@ -253,7 +254,7 @@ def main(argv=None):
     argp.add_argument('--dtype', type=int, default=2)
     argp.add_argument('--data-format', default='NCHW')
     argp.add_argument('--in-channels', type=int, default=1)
-    argp.add_argument('--out-channels', type=int, default=256)
+    argp.add_argument('--out-channels', type=int, default=64)
     # pre-processing parameters
     Data.add_arguments(argp)
     # model parameters
