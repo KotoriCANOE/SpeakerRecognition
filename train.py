@@ -36,9 +36,10 @@ class Train:
                     import sys
                     sys.exit()
                 import shutil
-                shutil.rmtree(self.train_dir)
+                shutil.rmtree(self.train_dir, ignore_errors=True)
                 eprint('Removed: ' + self.train_dir)
-            os.makedirs(self.train_dir)
+            if not os.path.exists(self.train_dir):
+                os.makedirs(self.train_dir)
         # set deterministic random seed
         if self.random_seed is not None:
             reset_random(self.random_seed)

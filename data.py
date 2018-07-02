@@ -86,19 +86,26 @@ class Data:
         # parameters
         slice_duration = 2000
         # read from file
-        audio = AudioSegment.from_file(file)
-        #channels = audio.channels
-        sample_rate = audio.frame_rate
-        slice_samples = slice_duration * sample_rate // 1000
-        # to np.array
-        data = np.array(audio.get_array_of_samples(), copy=False)
-        samples = data.shape[-1]
+        if os.path.splitext(file)[1] == '.wav':
+            from scipy.io import wavfile
+            sample_rate, audio = wavfile.read(file)
+            data = audio
+            audio_max = np.max(data)
+        else:
+            audio = AudioSegment.from_file(file)
+            #channels = audio.channels
+            sample_rate = audio.frame_rate
+            audio_max = audio.max
+            # to np.array
+            data = np.array(audio.get_array_of_samples(), copy=False)
         # slice
+        samples = data.shape[-1]
+        slice_samples = slice_duration * sample_rate // 1000
         if samples > slice_samples:
             start = random.randint(0, samples - slice_samples)
             data = data[start : start + slice_samples]
         # normalization
-        norm_factor = 1 / audio.max
+        norm_factor = 1 / audio_max
         data = data.astype(np.float32) * norm_factor
         # random data manipulation
         # data = DataPP.process(data)
