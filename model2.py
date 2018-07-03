@@ -211,8 +211,8 @@ class SRN:
         loss_key = self.generator_lkey
         with tf.variable_scope(loss_key):
             # triplet loss
-            #triplet_loss, fraction = batch_all(labels, embeddings, self.triplet_margin)
-            triplet_loss, fraction = batch_hard(labels, embeddings, self.triplet_margin)
+            triplet_loss, fraction = batch_all(labels, embeddings, self.triplet_margin)
+            #triplet_loss, fraction = batch_hard(labels, embeddings, self.triplet_margin)
             tf.losses.add_loss(triplet_loss)
             update_ops.append(self.loss_summary('triplet_loss', triplet_loss, self.g_log_losses))
             update_ops.append(self.loss_summary('fraction_positive_triplets', fraction, self.g_log_losses))
