@@ -268,3 +268,29 @@ Used batch_semi_hard
 out-channels: 128
 Used batch_semi_hard
 
+## 110
+
+retrained from 106 using batch_hard
+out-channels: 64
+
+## 111
+
+retrained from 105 using batch_hard
+out-channels: 256
+
+## 112
+## 113
+
+FCBlock: Embeddings
+OutBlock: One-hot labels
+FCBlock: act -> dense -> act -> dense
+OutBlock: act -> dense
+
+## 114
+
+OutBlock: act -> dense -> act -> dense
+
+## 115
+
+OutBlock: dense -> act -> dense
+

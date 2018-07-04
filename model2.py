@@ -15,6 +15,9 @@ class SRN:
         self.batch_size = None
         self.patch_height = None
         self.patch_width = None
+        # model parameters
+        self.embed_size = 512
+        self.batch_norm = 0.999
         # train parameters
         self.random_seed = None
         self.dropout = 0.5
@@ -44,6 +47,9 @@ class SRN:
 
     @staticmethod
     def add_arguments(argp):
+        # model parameters
+        argp.add_argument('--embed-size', type=int, default=512)
+        argp.add_argument('--batch-norm', type=float, default=0.999)
         # training parameters
         argp.add_argument('--dropout', type=float, default=0)
         argp.add_argument('--var-ema', type=float, default=0.999)
@@ -124,12 +130,13 @@ class SRN:
                 collections=[tf.GraphKeys.GLOBAL_VARIABLES, tf.GraphKeys.MODEL_VARIABLES])
             # function objects
             activation = self.generator_acti
-            normalizer = None
-            # normalizer = lambda x: slim.batch_norm(x, 0.999, center=True, scale=False,
-            #     is_training=self.g_training, data_format=format, renorm=False)
+            if self.batch_norm > 0:
+                normalizer = lambda x: slim.batch_norm(x, 0.999, center=True, scale=False,
+                    is_training=self.g_training, data_format=format, renorm=False)
+            else:
+                normalizer = None
             regularizer = slim.l2_regularizer(self.generator_wd)
             # network
-            last = tf.identity(last, 'inputs')
             with tf.variable_scope('InBlock'):
                 last = self.InBlock(last, 32, [1, 7], [1, 1], format, activation,
                     normalizer, regularizer, var_key)
@@ -179,18 +186,26 @@ class SRN:
                 last = tf.reduce_mean(last, [-2, -1] if format == 'NCHW' else [-3, -2])
             with tf.variable_scope('FCBlock'):
                 skip = last
-                last = slim.fully_connected(last, 512, activation, None,
+                last_channels = last.get_shape()[-3 if format == 'NCHW' else -1]
+                last = slim.fully_connected(last, last_channels, activation, None,
                     weights_regularizer=regularizer, variables_collections=var_key)
-                last = slim.fully_connected(last, 512, None, None,
+                last = slim.fully_connected(last, self.embed_size, None, None,
                     weights_regularizer=regularizer, variables_collections=var_key)
+                if self.embed_size != last_channels:
+                    skip = slim.conv2d(skip, self.embed_size,
+                        [1, 1], [1, 1], 'SAME', format,
+                        1, None, None,
+                        weights_regularizer=regularizer, variables_collections=var_key)
                 last += skip
+                self.embeddings = last
             with tf.variable_scope('OutBlock'):
-                last = activation(last)
+                #last = activation(last)
                 if self.dropout > 0:
                     last = tf.layers.dropout(last, self.dropout, training=self.g_training)
+                last = slim.fully_connected(last, self.embed_size, activation, None,
+                    weights_regularizer=regularizer, variables_collections=var_key)
                 last = slim.fully_connected(last, self.out_channels, None, None,
                     weights_regularizer=regularizer, variables_collections=var_key)
-            last = tf.identity(last, 'outputs')
         # trainable/model/save/restore variables
         self.g_tvars = tf.trainable_variables(main_scope)
         self.g_mvars = tf.model_variables(main_scope)
@@ -204,21 +219,24 @@ class SRN:
                     **{var.op.name: var for var in self.g_mvars}}
         return last
 
-    def build_g_loss(self, labels, embeddings):
+    def build_g_loss(self, labels, outputs, embeddings):
         from triplet_loss import batch_all, batch_hard
         self.g_log_losses = []
         update_ops = []
         loss_key = self.generator_lkey
         with tf.variable_scope(loss_key):
+            # softmax cross entropy
+            onehot_labels = tf.one_hot(labels, self.out_channels)
+            cross_loss = tf.losses.softmax_cross_entropy(onehot_labels, outputs, 1.0)
+            update_ops.append(self.loss_summary('cross_loss', cross_loss, self.g_log_losses))
+            # accuracy
+            accuracy = tf.contrib.metrics.accuracy(labels, tf.argmax(outputs, -1))
+            update_ops.append(self.loss_summary('accuracy', accuracy, self.g_log_losses))
             # triplet loss
             triplet_loss, fraction = batch_all(labels, embeddings, self.triplet_margin)
-            #triplet_loss, fraction = batch_hard(labels, embeddings, self.triplet_margin)
             tf.losses.add_loss(triplet_loss)
             update_ops.append(self.loss_summary('triplet_loss', triplet_loss, self.g_log_losses))
             update_ops.append(self.loss_summary('fraction_positive_triplets', fraction, self.g_log_losses))
-            # triplet_loss = batch_hard(labels, embeddings, self.triplet_margin)
-            # tf.losses.add_loss(triplet_loss)
-            # update_ops.append(self.loss_summary('triplet_loss', triplet_loss, self.g_log_losses))
             # total loss
             losses = tf.losses.get_losses(loss_key)
             g_main_loss = tf.add_n(losses, 'g_main_loss')
@@ -242,6 +260,8 @@ class SRN:
             self.inputs.set_shape(self.input_shape)
         # forward pass
         self.outputs = self.generator(self.inputs)
+        # embeddings
+        self.embeddings = tf.identity(self.embeddings, name='Embedding')
         # outputs
         self.outputs = tf.identity(self.outputs, name='Output')
         # all the restore variables
@@ -259,7 +279,8 @@ class SRN:
         # build model
         self.build_model(inputs)
         # build generator loss
-        self.build_g_loss(self.labels, self.outputs)
+        self.build_g_loss(self.labels, self.outputs, self.embeddings)
+        # self.build_g_loss(self.labels, self.outputs, self.outputs)
         # return total loss
         return self.g_loss
 

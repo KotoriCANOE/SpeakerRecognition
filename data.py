@@ -1,6 +1,7 @@
 from pydub import AudioSegment
 import numpy as np
 from scipy import ndimage
+from scipy.io import wavfile
 import os
 import random
 from utils import eprint, listdir_files
@@ -25,9 +26,9 @@ class Data:
     @staticmethod
     def add_arguments(argp):
         # pre-processing parameters
-        argp.add_argument('--processes', type=int, default=4)
-        argp.add_argument('--threads', type=int, default=2)
-        argp.add_argument('--prefetch', type=int, default=64)
+        argp.add_argument('--processes', type=int, default=1)
+        argp.add_argument('--threads', type=int, default=8)
+        argp.add_argument('--prefetch', type=int, default=256)
         argp.add_argument('--buffer-size', type=int, default=1024)
 
     @staticmethod
@@ -53,6 +54,7 @@ class Data:
     def get_files(self, num_ids=None):
         dataset_ids = os.listdir(self.dataset)[:num_ids]
         num_ids = len(dataset_ids)
+        self.num_ids = num_ids
         dataset_ids = [os.path.join(self.dataset, i) for i in dataset_ids]
         data_list = []
         for i in range(num_ids):
@@ -87,7 +89,6 @@ class Data:
         slice_duration = 2000
         # read from file
         if os.path.splitext(file)[1] == '.wav':
-            from scipy.io import wavfile
             sample_rate, audio = wavfile.read(file)
             data = audio
             audio_max = np.max(data)

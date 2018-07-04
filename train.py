@@ -46,6 +46,7 @@ class Train:
 
     def get_dataset(self):
         self.data = Data(self.config)
+        self.config.out_channels = self.data.num_ids
         self.epoch_steps = self.data.epoch_steps
         self.max_steps = self.data.max_steps
         self.val_inputs = []
@@ -114,7 +115,8 @@ class Train:
             self.log_last = time_current
             sec_batch = duration / self.log_frequency if self.log_frequency > 0 else 0
             samples_sec = self.batch_size / sec_batch
-            train_log = ('{}: epoch {}, step {}, train loss: {:.5}, fraction: {:.5}'
+            train_log = ('{} (train): epoch {}, step {}, cross: {:.5}, accuracy: {:.5}'
+                ', triplet: {:.5}, fraction: {:.5}'
                 ' ({:.1f} samples/sec, {:.3f} sec/batch)'
                 .format(datetime.now(), epoch, global_step,
                     *train_ret[1:], samples_sec, sec_batch))
@@ -130,13 +132,15 @@ class Train:
             val_ret = sess.run(fetch)
             self.val_writer.add_summary(val_ret[0], global_step)
             # logging
-            val_log = ('{}: epoch {}, step {}, val loss: {:.5}, fraction: {:.5}'
+            val_log = ('{} (val): epoch {}, step {}, cross: {:.5}, accuracy: {:.5}'
+                ', triplet: {:.5}, fraction: {:.5}'
                 .format(datetime.now(), epoch, global_step, *val_ret[1:]))
             eprint(val_log)
         # log result for the last step
         if self.log_file and last_step:
-            last_log = ('epoch {}, step {}, train loss: {:.5}, val loss: {:.5}, fraction: {:.5}'
-                .format(epoch, global_step, train_ret[1], *val_ret[1:]))
+            last_log = ('epoch {}, step {}, triplet: {:.5}, fraction: {:.5}'
+                ', cross: {:.5}, accuracy: {:.5}'
+                .format(epoch, global_step, *val_ret[1:]))
             with open(self.log_file, 'a', encoding='utf-8') as fd:
                 fd.write('Training No.{}\n'.format(self.postfix))
                 fd.write(self.train_dir + '\n')
