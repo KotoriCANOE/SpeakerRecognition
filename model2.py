@@ -149,18 +149,6 @@ class SRN:
             with tf.variable_scope('EBlock_3'):
                 last = self.EBlock(last, 32, 1, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
-            # with tf.variable_scope('EBlock_4'):
-            #     last = self.EBlock(last, 32, 2, kernel1, stride1, format, activation,
-            #         normalizer, regularizer, var_key)
-            # with tf.variable_scope('EBlock_5'):
-            #     last = self.EBlock(last, 32, 2, kernel1, stride1, format, activation,
-            #         normalizer, regularizer, var_key)
-            # with tf.variable_scope('EBlock_6'):
-            #     last = self.EBlock(last, 32, 3, kernel1, stride1, format, activation,
-            #         normalizer, regularizer, var_key)
-            # with tf.variable_scope('EBlock_7'):
-            #     last = self.EBlock(last, 32, 3, kernel1, stride1, format, activation,
-            #         normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_4'):
                 last = self.EBlock(last, 48, 2, kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
@@ -186,7 +174,7 @@ class SRN:
                 last = tf.reduce_mean(last, [-2, -1] if format == 'NCHW' else [-3, -2])
             with tf.variable_scope('FCBlock'):
                 skip = last
-                last_channels = last.get_shape()[-3 if format == 'NCHW' else -1]
+                last_channels = last.shape.as_list()[-1]
                 last = slim.fully_connected(last, last_channels, activation, None,
                     weights_regularizer=regularizer, variables_collections=var_key)
                 last = slim.fully_connected(last, self.embed_size, None, None,
@@ -199,11 +187,8 @@ class SRN:
                 last += skip
                 self.embeddings = last
             with tf.variable_scope('OutBlock'):
-                #last = activation(last)
                 if self.dropout > 0:
                     last = tf.layers.dropout(last, self.dropout, training=self.g_training)
-                last = slim.fully_connected(last, self.embed_size, activation, None,
-                    weights_regularizer=regularizer, variables_collections=var_key)
                 last = slim.fully_connected(last, self.out_channels, None, None,
                     weights_regularizer=regularizer, variables_collections=var_key)
         # trainable/model/save/restore variables

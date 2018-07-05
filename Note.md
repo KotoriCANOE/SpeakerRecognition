@@ -293,4 +293,16 @@ OutBlock: act -> dense -> act -> dense
 ## 115
 
 OutBlock: dense -> act -> dense
+- almost the same fraction as #114, but higher classification accuracy
 
+## 116
+
+OutBlock: dense
+
+## 117
+
+OutBlock dropout: 0.5
+
+## 118
+
+OutBlock dropout: 0.9

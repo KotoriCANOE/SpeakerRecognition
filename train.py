@@ -138,8 +138,8 @@ class Train:
             eprint(val_log)
         # log result for the last step
         if self.log_file and last_step:
-            last_log = ('epoch {}, step {}, triplet: {:.5}, fraction: {:.5}'
-                ', cross: {:.5}, accuracy: {:.5}'
+            last_log = ('epoch {}, step {}, cross: {:.5}, accuracy: {:.5}'
+                ', triplet: {:.5}, fraction: {:.5}'
                 .format(epoch, global_step, *val_ret[1:]))
             with open(self.log_file, 'a', encoding='utf-8') as fd:
                 fd.write('Training No.{}\n'.format(self.postfix))

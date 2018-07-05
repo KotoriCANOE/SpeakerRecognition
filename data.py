@@ -26,8 +26,8 @@ class Data:
     @staticmethod
     def add_arguments(argp):
         # pre-processing parameters
-        argp.add_argument('--processes', type=int, default=1)
-        argp.add_argument('--threads', type=int, default=8)
+        argp.add_argument('--processes', type=int, default=2)
+        argp.add_argument('--threads', type=int, default=4)
         argp.add_argument('--prefetch', type=int, default=256)
         argp.add_argument('--buffer-size', type=int, default=1024)
 
