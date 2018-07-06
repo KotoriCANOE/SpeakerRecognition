@@ -288,11 +288,11 @@ OutBlock: act -> dense
 
 ## 114
 
-OutBlock: act -> dense -> act -> dense
+(unchanged) OutBlock: act -> dense -> act -> dense
 
 ## 115
 
-OutBlock: dense -> act -> dense
+(unchanged) OutBlock: dense -> act -> dense
 - almost the same fraction as #114, but higher classification accuracy
 
 ## 116
@@ -301,8 +301,42 @@ OutBlock: dense
 
 ## 117
 
-OutBlock dropout: 0.5
+(unchanged) OutBlock dropout: 0.5
 
 ## 118
 
-OutBlock dropout: 0.9
+(unchanged) OutBlock dropout: 0.9
+
+## 119
+
+(unchanged) FCBlock: added BatchNorm before embeddings
+
+## 120
+
+(unchanged)
+FCBlock: used LayerNorm before embeddings
+triplet-margin: 2.0
+
+## 121
+
+(unchanged)
+FCBlock: used LayerNorm before embeddings
+triplet-margin: 0.5
+
+## 122
+
+FCBlock: used L2 norm before embeddings
+triplet-margin: 0.5
+removed cross entropy loss
+
+## 123
+
+FCBlock: used L2 norm before embeddings
+triplet-margin: 0.5
+added cross entropy loss
+
+## 124
+
+used batch_hard
+
+
