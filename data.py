@@ -109,7 +109,7 @@ class Data:
         norm_factor = 1 / audio_max
         data = data.astype(np.float32) * norm_factor
         # random data manipulation
-        # data = DataPP.process(data)
+        data = DataPP.process(data)
         # convert to CHW format
         data = np.expand_dims(np.expand_dims(data, 0), 0)
         # label
@@ -186,7 +186,7 @@ class DataPP:
     @classmethod
     def process(cls, data):
         # smoothing
-        smooth_prob = 0.5
+        smooth_prob = 0.1
         smooth_std = 0.75
         if cls.active_prob(smooth_prob):
             smooth_scale = cls.truncate_normal(smooth_std)

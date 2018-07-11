@@ -185,7 +185,6 @@ class SRN:
                         1, None, None,
                         weights_regularizer=regularizer, variables_collections=var_key)
                 last += skip
-                last = tf.nn.l2_normalize(last, -1)
                 self.embeddings = last
             with tf.variable_scope('OutBlock'):
                 if self.dropout > 0:
@@ -219,7 +218,7 @@ class SRN:
             accuracy = tf.contrib.metrics.accuracy(labels, tf.argmax(outputs, -1))
             update_ops.append(self.loss_summary('accuracy', accuracy, self.g_log_losses))
             # triplet loss
-            triplet_loss, fraction = batch_hard(labels, embeddings, self.triplet_margin)
+            triplet_loss, fraction = batch_all(labels, embeddings, self.triplet_margin)
             tf.losses.add_loss(triplet_loss)
             update_ops.append(self.loss_summary('triplet_loss', triplet_loss, self.g_log_losses))
             update_ops.append(self.loss_summary('fraction_positive_triplets', fraction, self.g_log_losses))

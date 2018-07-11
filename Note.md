@@ -325,18 +325,31 @@ triplet-margin: 0.5
 
 ## 122
 
+(furthur)
 FCBlock: used L2 norm before embeddings
 triplet-margin: 0.5
 removed cross entropy loss
 
 ## 123
 
+(unchanged)
 FCBlock: used L2 norm before embeddings
 triplet-margin: 0.5
 added cross entropy loss
 
 ## 124
 
-used batch_hard
+(unchanged) used batch_hard
+
+## 125
+
+based on ## 116
+added DataPP
+
+## 126
+
+(unchanged)
+based on ## 122
+added DataPP
 
 
