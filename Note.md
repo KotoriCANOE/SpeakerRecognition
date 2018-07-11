@@ -352,4 +352,13 @@ added DataPP
 based on ## 122
 added DataPP
 
+## 127
+
+Batch Hard with soft margin
+
+## 128
+
+Batch All without negative distance
+
+
 
