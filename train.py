@@ -252,7 +252,7 @@ def main(argv=None):
     argp.add_argument('--ckpt-period', type=int, default=600)
     argp.add_argument('--log-frequency', type=int, default=100)
     argp.add_argument('--log-file', default='train.log')
-    argp.add_argument('--batch-size', type=int, default=32)
+    argp.add_argument('--batch-size', type=int, default=72)
     argp.add_argument('--val-size', type=int, default=256)
     # data parameters
     argp.add_argument('--dtype', type=int, default=2)

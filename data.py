@@ -32,18 +32,23 @@ class Data:
         argp.add_argument('--buffer-size', type=int, default=1024)
 
     @staticmethod
-    def group_shuffle(dataset, batch_size, shuffle=False):
+    def group_shuffle(dataset, batch_size, shuffle=False, group_size=4):
         if shuffle:
             random.shuffle(dataset)
         upper = len(dataset)
-        batch_groups = batch_size // 2
+        assert batch_size % group_size == 0
+        batch_groups = batch_size // group_size
         for i in range(0, upper, batch_size):
             j = i + batch_groups
             ids = [d[0] for d in dataset[i : j]]
+            counts = {ids[i]: group_size - 1 for i in range(batch_groups)}
             for k in range(j, upper):
                 data = dataset[k]
-                if data[0] in ids:
-                    ids.remove(data[0])
+                id_ = data[0]
+                if id_ in ids and counts[id_] > 0:
+                    counts[id_] -= 1
+                    if counts[id_] <= 0:
+                        ids.remove(id_)
                     dataset[k] = dataset[j]
                     dataset[j] = data
                     j += 1
@@ -86,7 +91,7 @@ class Data:
     @staticmethod
     def process_sample(id_, file):
         # parameters
-        slice_duration = 2000
+        slice_duration = 1000
         # read from file
         if os.path.splitext(file)[1] == '.wav':
             sample_rate, audio = wavfile.read(file)
