@@ -276,7 +276,6 @@ class SRN:
         self.build_model(inputs)
         # build generator loss
         self.build_g_loss(self.labels, self.outputs, self.embeddings)
-        # self.build_g_loss(self.labels, self.outputs, self.outputs)
         # return total loss
         return self.g_loss
 
