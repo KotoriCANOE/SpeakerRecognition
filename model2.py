@@ -205,7 +205,6 @@ class SRN:
         return last
 
     def build_g_loss(self, labels, outputs, embeddings):
-        from triplet_loss import batch_all, batch_hard
         self.g_log_losses = []
         update_ops = []
         loss_key = self.generator_lkey
@@ -217,7 +216,18 @@ class SRN:
             # accuracy
             accuracy = tf.contrib.metrics.accuracy(labels, tf.argmax(outputs, -1))
             update_ops.append(self.loss_summary('accuracy', accuracy, self.g_log_losses))
+            # center loss
+            '''
+            from center_loss import get_center_loss
+            lambda_ = 0.003
+            center_loss, centers, centers_update_op = get_center_loss(embeddings, labels, self.out_channels)
+            tf.losses.add_loss(center_loss * lambda_)
+            update_ops.append(centers_update_op)
+            update_ops.append(self.loss_summary('center_loss', center_loss, self.g_log_losses))
+            update_ops.append(self.loss_summary('fraction_positive_triplets', 0, self.g_log_losses))
+            '''
             # triplet loss
+            from triplet_loss import batch_all, batch_hard
             triplet_loss, fraction = batch_all(labels, embeddings, self.triplet_margin)
             # triplet_loss, fraction = batch_hard(labels, embeddings, self.triplet_margin)
             tf.losses.add_loss(triplet_loss)
