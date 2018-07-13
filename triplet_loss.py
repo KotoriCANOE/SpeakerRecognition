@@ -63,7 +63,7 @@ def _get_triplet_mask(labels):
 
 def batch_all(labels, embeddings, margin, squared=False):
     # disable negative distance if margin is not positive
-    negative = margin <= 0
+    negative = margin > 0
     # Get the pairwise distance matrix
     pairwise_dist = _pairwise_distances(embeddings, squared=squared)
     # shape (batch_size, batch_size, 1)

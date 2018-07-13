@@ -354,11 +354,25 @@ added DataPP
 
 ## 127
 
+(unchanged)
 Batch Hard with soft margin
 
 ## 128
 
+(bug in code, re-investigation required)
 Batch All without negative distance
 
+## 129
+
+Batch All Triplet
+triplet margin: 0.5
+sample duration: 2000ms => 1000ms
+val size: 256 => 576
+batch size: 32 => 72
+group size: 2 => 4
+
+## 130
+
+Center Loss
 
 

@@ -216,8 +216,8 @@ class SRN:
             # accuracy
             accuracy = tf.contrib.metrics.accuracy(labels, tf.argmax(outputs, -1))
             update_ops.append(self.loss_summary('accuracy', accuracy, self.g_log_losses))
-            # center loss
             '''
+            # center loss
             from center_loss import get_center_loss
             lambda_ = 0.003
             center_loss, centers, centers_update_op = get_center_loss(embeddings, labels, self.out_channels)
