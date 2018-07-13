@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import os
-from utils import eprint, listdir_files, reset_random, create_session
+from utils import eprint, reset_random, create_session
 from data import Data
 from model2 import SRN
 
@@ -49,9 +49,10 @@ class Train:
         self.config.out_channels = self.data.num_ids
         self.epoch_steps = self.data.epoch_steps
         self.max_steps = self.data.max_steps
+        # pre-computing validation set
         self.val_inputs = []
         self.val_labels = []
-        for _inputs, _labels in self.data.get_val():
+        for _inputs, _labels in self.data.gen_val():
             self.val_inputs.append(_inputs)
             self.val_labels.append(_labels)
 
@@ -115,7 +116,7 @@ class Train:
             self.log_last = time_current
             sec_batch = duration / self.log_frequency if self.log_frequency > 0 else 0
             samples_sec = self.batch_size / sec_batch
-            train_log = ('{} (train): epoch {}, step {}, cross: {:.5}, accuracy: {:.5}'
+            train_log = ('{} (train) epoch {}, step {}: cross: {:.5}, accuracy: {:.5}'
                 ', triplet: {:.5}, fraction: {:.5}'
                 ' ({:.1f} samples/sec, {:.3f} sec/batch)'
                 .format(datetime.now(), epoch, global_step,
@@ -132,13 +133,13 @@ class Train:
             val_ret = sess.run(fetch)
             self.val_writer.add_summary(val_ret[0], global_step)
             # logging
-            val_log = ('{} (val): epoch {}, step {}, cross: {:.5}, accuracy: {:.5}'
+            val_log = ('{} (val) epoch {}, step {}: cross: {:.5}, accuracy: {:.5}'
                 ', triplet: {:.5}, fraction: {:.5}'
                 .format(datetime.now(), epoch, global_step, *val_ret[1:]))
             eprint(val_log)
         # log result for the last step
         if self.log_file and last_step:
-            last_log = ('epoch {}, step {}, cross: {:.5}, accuracy: {:.5}'
+            last_log = ('epoch {}, step {}: cross: {:.5}, accuracy: {:.5}'
                 ', triplet: {:.5}, fraction: {:.5}'
                 .format(epoch, global_step, *val_ret[1:]))
             with open(self.log_file, 'a', encoding='utf-8') as fd:
@@ -258,7 +259,7 @@ def main(argv=None):
     argp.add_argument('--dtype', type=int, default=2)
     argp.add_argument('--data-format', default='NCHW')
     argp.add_argument('--in-channels', type=int, default=1)
-    argp.add_argument('--out-channels', type=int, default=64)
+    argp.add_argument('--out-channels', type=int)
     # pre-processing parameters
     Data.add_arguments(argp)
     # model parameters
