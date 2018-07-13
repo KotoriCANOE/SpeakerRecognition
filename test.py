@@ -33,6 +33,18 @@ class SRNTest(SRN):
             with tf.control_dependencies(update_ops):
                 self.losses_acc = tf.no_op('losses_accumulator')
 
+    def build_test(self, inputs=None, labels=None):
+        # reference outputs
+        if labels is None:
+            self.labels = tf.placeholder(tf.int64, self.label_shape, name='Label')
+        else:
+            self.labels = tf.identity(labels, name='Label')
+            self.labels.set_shape(self.label_shape)
+        # build model
+        self.build_model(inputs)
+        # build generator loss
+        self.test_loss(self.labels, self.outputs, self.embeddings)
+
 # class for testing session
 class Test:
     def __init__(self, config):
@@ -41,6 +53,7 @@ class Test:
         self.postfix = None
         self.train_dir = None
         self.test_dir = None
+        self.model_file = None
         self.log_file = None
         self.batch_size = None
         # copy all the properties from config object
@@ -72,7 +85,6 @@ class Test:
 
     def get_dataset(self):
         self.data = Data(self.config)
-        self.config.out_channels = self.data.num_ids
         self.epoch_steps = self.data.epoch_steps
         self.max_steps = self.data.max_steps
         # pre-computing testing set
@@ -86,8 +98,7 @@ class Test:
     def build_graph(self):
         with tf.device(self.device):
             self.model = SRNTest(self.config)
-            self.model.build_model()
-            self.model.test_loss(self.model.labels, self.model.outputs, self.model.embeddings)
+            self.model.build_test()
             _, self.loss_summary = self.model.get_summaries()
 
     def build_saver(self):
@@ -95,8 +106,15 @@ class Test:
         self.saver = tf.train.Saver(self.model.rvars)
 
     def run_last(self, sess):
-        # latest checkpoint
-        ckpt = tf.train.latest_checkpoint(self.train_dir)
+        # initialize all variables
+        initializers = (tf.initializers.global_variables(),
+            tf.initializers.local_variables())
+        sess.run(initializers)
+        # latest checkpoint or specific model
+        if self.model_file is None:
+            ckpt = tf.train.latest_checkpoint(self.train_dir)
+        else:
+            ckpt = os.path.join(self.train_dir, self.model_file)
         self.saver.restore(sess, ckpt)
         # to be fetched
         fetch = [self.model.losses_acc, self.model.embeddings, self.model.outputs]
@@ -123,6 +141,11 @@ class Test:
                 fd.write(self.test_dir + '\n')
                 fd.write('{}\n'.format(datetime.now()))
                 fd.write(last_log + '\n\n')
+        # write embeddings
+        labels = np.concatenate(self.test_labels, axis=0)
+        embeddings = np.concatenate(embeddings, axis=0)
+        with open(os.path.join(self.test_dir, 'embeddings.npz'), 'wb') as fd:
+            np.savez_compressed(fd, labels=labels, embeddings=embeddings)
 
     def __call__(self):
         self.initialize()
@@ -145,15 +168,17 @@ def main(argv=None):
     argp.add_argument('--postfix', default='')
     argp.add_argument('--train-dir', default='./train{postfix}.tmp')
     argp.add_argument('--test-dir', default='./test{postfix}.tmp')
+    argp.add_argument('--model-file')
     argp.add_argument('--log-file', default='test.log')
-    argp.add_argument('--batch-size', type=int, default=32)
+    argp.add_argument('--batch-size', type=int, default=72)
     # data parameters
     argp.add_argument('--dtype', type=int, default=2)
     argp.add_argument('--data-format', default='NCHW')
     argp.add_argument('--in-channels', type=int, default=1)
-    argp.add_argument('--out-channels', type=int)
+    argp.add_argument('--out-channels', type=int, default=5994)
     # pre-processing parameters
     Data.add_arguments(argp)
+    argp.set_defaults(shuffle=False)
     # model parameters
     SRNTest.add_arguments(argp)
     # parse

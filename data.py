@@ -17,6 +17,7 @@ class Data:
         self.threads = None
         self.prefetch = None
         self.buffer_size = None
+        self.shuffle = None
         # copy all the properties from config object
         self.config = config
         self.__dict__.update(config.__dict__)
@@ -30,6 +31,9 @@ class Data:
         argp.add_argument('--threads', type=int, default=4)
         argp.add_argument('--prefetch', type=int, default=256)
         argp.add_argument('--buffer-size', type=int, default=1024)
+        argp.add_argument('--shuffle', dest='shuffle', action='store_true')
+        argp.add_argument('--no-shuffle', dest='shuffle', action='store_false')
+        argp.set_defaults(shuffle=True)
 
     @staticmethod
     def group_shuffle(dataset, batch_size, shuffle=False, group_size=4):
@@ -66,7 +70,7 @@ class Data:
             files = listdir_files(dataset_ids[i], filter_ext=['.wav', '.m4a'])
             for f in files:
                 data_list.append((i, f))
-        self.group_shuffle(data_list, self.batch_size, True)
+        self.group_shuffle(data_list, self.batch_size, self.shuffle)
         # val set
         if self.val_size is not None:
             assert self.val_size < len(data_list)
@@ -181,7 +185,7 @@ class Data:
 
     def gen_main(self, start=0):
         return self._gen_batches(self.main_set, self.epoch_steps, self.num_epochs,
-            start, True)
+            start, self.shuffle)
 
     def gen_val(self, start=0):
         return self._gen_batches(self.val_set, self.val_steps, 1,

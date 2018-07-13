@@ -336,8 +336,8 @@ class SRN:
                 return tf.identity(loss, 'loss')
 
     def get_summaries(self):
-        train_summary = tf.summary.merge(self.train_sums)
-        loss_summary = tf.summary.merge(self.loss_sums)
+        train_summary = tf.summary.merge(self.train_sums) if self.train_sums else None
+        loss_summary = tf.summary.merge(self.loss_sums) if self.loss_sums else None
         return train_summary, loss_summary
 
     @staticmethod
