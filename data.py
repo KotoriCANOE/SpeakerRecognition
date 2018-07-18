@@ -18,6 +18,7 @@ class Data:
         self.prefetch = None
         self.buffer_size = None
         self.shuffle = None
+        self.group_size = None
         # copy all the properties from config object
         self.config = config
         self.__dict__.update(config.__dict__)
@@ -25,7 +26,7 @@ class Data:
         self.get_files()
 
     @staticmethod
-    def add_arguments(argp):
+    def add_arguments(argp, test=False):
         # pre-processing parameters
         argp.add_argument('--processes', type=int, default=2)
         argp.add_argument('--threads', type=int, default=4)
@@ -34,9 +35,15 @@ class Data:
         argp.add_argument('--shuffle', dest='shuffle', action='store_true')
         argp.add_argument('--no-shuffle', dest='shuffle', action='store_false')
         argp.set_defaults(shuffle=True)
+        argp.add_argument('--group-size', type=int, default=4)
+        # sample parameters
+        argp.add_argument('--pp-duration', type=int, default=2000 if test else 1000)
+        argp.add_argument('--pp-smooth', type=float, default=0 if test else 0.1)
+        argp.add_argument('--pp-noise', type=float, default=0 if test else 0.7)
+        argp.add_argument('--pp-amplitude', type=int, default=0 if test else 20)
 
     @staticmethod
-    def group_shuffle(dataset, batch_size, shuffle=False, group_size=4):
+    def group_shuffle(dataset, batch_size, shuffle, group_size):
         if shuffle:
             random.shuffle(dataset)
         upper = len(dataset)
@@ -70,7 +77,7 @@ class Data:
             files = listdir_files(dataset_ids[i], filter_ext=['.wav', '.m4a'])
             for f in files:
                 data_list.append((i, f))
-        self.group_shuffle(data_list, self.batch_size, self.shuffle)
+        self.group_shuffle(data_list, self.batch_size, self.shuffle, self.group_size)
         # val set
         if self.val_size is not None:
             assert self.val_size < len(data_list)
@@ -93,9 +100,9 @@ class Data:
             .format(len(self.main_set), self.epoch_steps, self.num_epochs, self.max_steps))
 
     @staticmethod
-    def process_sample(id_, file):
+    def process_sample(id_, file, config):
         # parameters
-        slice_duration = 1000
+        slice_duration = config.pp_duration
         # read from file
         if os.path.splitext(file)[1] == '.wav':
             sample_rate, audio = wavfile.read(file)
@@ -112,13 +119,17 @@ class Data:
         samples = data.shape[-1]
         slice_samples = slice_duration * sample_rate // 1000
         if samples > slice_samples:
+            # randomly cropping
             start = random.randint(0, samples - slice_samples)
             data = data[start : start + slice_samples]
+        elif samples < slice_samples:
+            # padding
+            data = np.pad(data, (0, slice_samples - samples), 'constant')
         # normalization
         norm_factor = 1 / audio_max
         data = data.astype(np.float32) * norm_factor
         # random data manipulation
-        data = DataPP.process(data)
+        data = DataPP.process(data, config)
         # convert to CHW format
         data = np.expand_dims(np.expand_dims(data, 0), 0)
         # label
@@ -127,22 +138,22 @@ class Data:
         return data, label
 
     @classmethod
-    def extract_batch(cls, batch_set, threads=1):
+    def extract_batch(cls, batch_set, config):
         from concurrent.futures import ThreadPoolExecutor
         # initialize
         inputs = []
         labels = []
         # load all the data
-        if threads == 1:
+        if config.threads == 1:
             for id_, file in batch_set:
-                _input, _label = cls.process_sample(id_, file)
+                _input, _label = cls.process_sample(id_, file, config)
                 inputs.append(_input)
                 labels.append(_label)
         else:
-            with ThreadPoolExecutor(threads) as executor:
+            with ThreadPoolExecutor(config.threads) as executor:
                 futures = []
                 for id_, file in batch_set:
-                    futures.append(executor.submit(cls.process_sample, id_, file))
+                    futures.append(executor.submit(cls.process_sample, id_, file, config))
                 # final data
                 for future in futures:
                     _input, _label = future.result()
@@ -168,13 +179,13 @@ class Data:
                 # grouping random shuffle
                 if epoch > 0:
                     _dataset = dataset.copy()
-                    self.group_shuffle(_dataset, self.batch_size, shuffle)
+                    self.group_shuffle(_dataset, self.batch_size, shuffle, self.group_size)
                 # loop over steps within an epoch
                 for step in range(step_start, step_stop):
                     offset = step * self.batch_size
                     upper = min(len(_dataset), offset + self.batch_size)
                     batch_set = _dataset[offset : upper]
-                    futures.append(executor.submit(self.extract_batch, batch_set, self.threads))
+                    futures.append(executor.submit(self.extract_batch, batch_set, self.config))
                     # yield the data beyond prefetch range
                     while len(futures) >= self.prefetch:
                         future = futures.pop(0)
@@ -193,15 +204,15 @@ class Data:
 
 class DataPP:
     @classmethod
-    def process(cls, data):
+    def process(cls, data, config):
         # smoothing
-        smooth_prob = 0.1
+        smooth_prob = config.pp_smooth
         smooth_std = 0.75
         if cls.active_prob(smooth_prob):
             smooth_scale = cls.truncate_normal(smooth_std)
             data = ndimage.gaussian_filter1d(data, smooth_scale, truncate=2.0)
         # add noise
-        noise_prob = 0.7
+        noise_prob = config.pp_noise
         noise_std = 0.025
         noise_smooth_prob = 0.8
         noise_smooth_std = 1.5
@@ -216,7 +227,9 @@ class DataPP:
             # add noise
             data += noise
         # random amplitude
-        data *= 0.1 ** np.random.uniform(0, 2) # 0~-20 dB
+        amplitude = config.pp_amplitude / 10
+        if amplitude > 0:
+            data *= 0.1 ** np.random.uniform(0, amplitude) # 0~-20 dB
         # return
         return data
 

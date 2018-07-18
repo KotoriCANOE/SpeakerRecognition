@@ -87,13 +87,7 @@ class Test:
         self.data = Data(self.config)
         self.epoch_steps = self.data.epoch_steps
         self.max_steps = self.data.max_steps
-        # pre-computing testing set
-        self.test_inputs = []
-        self.test_labels = []
-        data_gen = self.data.gen_main()
-        for _inputs, _labels in data_gen:
-            self.test_inputs.append(_inputs)
-            self.test_labels.append(_labels)
+        self.data_gen = self.data.gen_main()
 
     def build_graph(self):
         with tf.device(self.device):
@@ -118,15 +112,15 @@ class Test:
         self.saver.restore(sess, ckpt)
         # to be fetched
         fetch = [self.model.losses_acc, self.model.embeddings, self.model.outputs]
+        labels = []
         embeddings = []
-        outputs = []
         # loop over batches
         for step in range(self.epoch_steps):
-            feed_dict = {'Input:0': self.test_inputs[step],
-                'Label:0': self.test_labels[step]}
+            _inputs, _labels = next(self.data_gen)
+            feed_dict = {'Input:0': _inputs, 'Label:0': _labels}
             _, _embeddings, _outputs = sess.run(fetch, feed_dict)
+            labels.append(_labels)
             embeddings.append(_embeddings)
-            outputs.append(_outputs)
         # get summaries
         fetch = [self.loss_summary] + self.model.log_losses
         test_ret = sess.run(fetch)
@@ -142,7 +136,7 @@ class Test:
                 fd.write('{}\n'.format(datetime.now()))
                 fd.write(last_log + '\n\n')
         # write embeddings
-        labels = np.concatenate(self.test_labels, axis=0)
+        labels = np.concatenate(labels, axis=0)
         embeddings = np.concatenate(embeddings, axis=0)
         with open(os.path.join(self.test_dir, 'embeddings.npz'), 'wb') as fd:
             np.savez_compressed(fd, labels=labels, embeddings=embeddings)
@@ -170,15 +164,14 @@ def main(argv=None):
     argp.add_argument('--test-dir', default='./test{postfix}.tmp')
     argp.add_argument('--model-file')
     argp.add_argument('--log-file', default='test.log')
-    argp.add_argument('--batch-size', type=int, default=72)
+    argp.add_argument('--batch-size', type=int, default=36)
     # data parameters
     argp.add_argument('--dtype', type=int, default=2)
     argp.add_argument('--data-format', default='NCHW')
     argp.add_argument('--in-channels', type=int, default=1)
     argp.add_argument('--out-channels', type=int, default=5994)
     # pre-processing parameters
-    Data.add_arguments(argp)
-    argp.set_defaults(shuffle=False)
+    Data.add_arguments(argp, True)
     # model parameters
     SRNTest.add_arguments(argp)
     # parse
