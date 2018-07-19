@@ -179,12 +179,8 @@ class SRN:
                     weights_regularizer=regularizer, variables_collections=var_key)
                 last = slim.fully_connected(last, self.embed_size, None, None,
                     weights_regularizer=regularizer, variables_collections=var_key)
-                if self.embed_size != last_channels:
-                    skip = slim.conv2d(skip, self.embed_size,
-                        [1, 1], [1, 1], 'SAME', format,
-                        1, None, None,
-                        weights_regularizer=regularizer, variables_collections=var_key)
-                last += skip
+                if self.embed_size == last_channels:
+                    last += skip
                 self.embeddings = last
             with tf.variable_scope('OutBlock'):
                 if self.dropout > 0:
@@ -216,7 +212,6 @@ class SRN:
             # accuracy
             accuracy = tf.contrib.metrics.accuracy(labels, tf.argmax(outputs, -1))
             update_ops.append(self.loss_summary('accuracy', accuracy, self.g_log_losses))
-            '''
             # center loss
             from center_loss import get_center_loss
             lambda_ = 0.003
@@ -233,6 +228,7 @@ class SRN:
             tf.losses.add_loss(triplet_loss)
             update_ops.append(self.loss_summary('triplet_loss', triplet_loss, self.g_log_losses))
             update_ops.append(self.loss_summary('fraction_positive_triplets', fraction, self.g_log_losses))
+            '''
             # total loss
             losses = tf.losses.get_losses(loss_key)
             g_main_loss = tf.add_n(losses, 'g_main_loss')
