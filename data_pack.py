@@ -3,7 +3,7 @@ import os
 from utils import eprint, reset_random
 from data import Data
 
-class DataPrepare:
+class DataPack:
     def __init__(self, config):
         self.output_dir = None
         self.random_seed = None
@@ -75,9 +75,9 @@ def main(argv=None):
     Data.add_arguments(argp)
     # parse
     args = argp.parse_args(argv)
-    # data prepare
-    data_prepare = DataPrepare(args)
-    data_prepare()
+    # data pack
+    data_pack = DataPack(args)
+    data_pack()
 
 if __name__ == '__main__':
     import sys

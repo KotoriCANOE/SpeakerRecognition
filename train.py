@@ -46,7 +46,9 @@ class Train:
 
     def get_dataset(self):
         self.data = Data(self.config)
-        self.config.out_channels = self.data.num_ids
+        if self.data.num_ids is not None:
+            self.config.out_channels = self.data.num_ids
+            eprint('--out-channels is set to {}'.format(self.config.out_channels))
         self.epoch_steps = self.data.epoch_steps
         self.max_steps = self.data.max_steps
         # pre-computing validation set

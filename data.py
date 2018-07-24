@@ -13,6 +13,7 @@ class Data:
         self.max_steps = None
         self.batch_size = None
         self.val_size = None
+        self.packed = None
         self.processes = None
         self.threads = None
         self.prefetch = None
@@ -23,10 +24,12 @@ class Data:
         self.config = config
         self.__dict__.update(config.__dict__)
         # initialize
+        self.num_ids = None
         self.get_files()
 
     @staticmethod
     def add_arguments(argp, test=False):
+        argp.add_argument('--packed', action='store_true')
         # pre-processing parameters
         argp.add_argument('--processes', type=int, default=2)
         argp.add_argument('--threads', type=int, default=4)
@@ -67,7 +70,34 @@ class Data:
                         break
         return dataset
 
+    def get_files_packed(self):
+        data_list = os.listdir(self.dataset)
+        data_list = [os.path.join(self.dataset, i) for i in data_list]
+        # val set
+        if self.val_size is not None:
+            self.val_steps = self.val_size // self.batch_size
+            assert self.val_steps < len(data_list)
+            self.val_size = self.val_steps * self.batch_size
+            self.val_set = data_list[:self.val_steps]
+            data_list = data_list[self.val_steps:]
+            eprint('validation set: {}'.format(self.val_size))
+        # main set
+        self.epoch_steps = len(data_list)
+        self.epoch_size = self.epoch_steps * self.batch_size
+        if self.max_steps is None:
+            self.max_steps = self.epoch_steps * self.num_epochs
+        else:
+            self.num_epochs = (self.max_steps + self.epoch_steps - 1) // self.epoch_steps
+        self.main_set = data_list
+        # print
+        eprint('main set: {}\nepoch steps: {}\nnum epochs: {}\nmax steps: {}\n'
+            .format(self.epoch_size, self.epoch_steps, self.num_epochs, self.max_steps))
+
     def get_files(self, num_ids=None):
+        # packed dataset
+        if self.packed:
+            return self.get_files_packed()
+        # non-packed dataset
         dataset_ids = os.listdir(self.dataset)[:num_ids]
         num_ids = len(dataset_ids)
         self.num_ids = num_ids
@@ -97,7 +127,7 @@ class Data:
         self.main_set = data_list[:self.epoch_size]
         # print
         eprint('main set: {}\nepoch steps: {}\nnum epochs: {}\nmax steps: {}\n'
-            .format(len(self.main_set), self.epoch_steps, self.num_epochs, self.max_steps))
+            .format(self.epoch_size, self.epoch_steps, self.num_epochs, self.max_steps))
 
     @staticmethod
     def process_sample(id_, file, config):
@@ -164,7 +194,38 @@ class Data:
         labels = np.stack(labels)
         return inputs, labels
 
-    def _gen_batches(self, dataset, epoch_steps, num_epochs=1, start=0,
+    @classmethod
+    def extract_batch_packed(cls, batch_set):
+        npz = np.load(batch_set)
+        inputs = npz['inputs']
+        labels = npz['labels']
+        return inputs, labels
+
+    def _gen_batches_packed(self, dataset, epoch_steps, num_epochs=1, start=0):
+        _dataset = dataset
+        max_steps = epoch_steps * num_epochs
+        from concurrent.futures import ProcessPoolExecutor
+        with ProcessPoolExecutor(self.processes) as executor:
+            futures = []
+            # loop over epochs
+            for epoch in range(start // epoch_steps, num_epochs):
+                step_offset = epoch_steps * epoch
+                step_start = max(0, start - step_offset)
+                step_stop = min(epoch_steps, max_steps - step_offset)
+                # loop over steps within an epoch
+                for step in range(step_start, step_stop):
+                    batch_set = _dataset[step]
+                    futures.append(executor.submit(self.extract_batch_packed,
+                        batch_set))
+                    # yield the data beyond prefetch range
+                    while len(futures) >= self.prefetch:
+                        future = futures.pop(0)
+                        yield future.result()
+            # yield the remaining data
+            for future in futures:
+                yield future.result()
+
+    def _gen_batches_normal(self, dataset, epoch_steps, num_epochs=1, start=0,
         shuffle=False):
         _dataset = dataset
         max_steps = epoch_steps * num_epochs
@@ -185,7 +246,8 @@ class Data:
                     offset = step * self.batch_size
                     upper = min(len(_dataset), offset + self.batch_size)
                     batch_set = _dataset[offset : upper]
-                    futures.append(executor.submit(self.extract_batch, batch_set, self.config))
+                    futures.append(executor.submit(self.extract_batch,
+                        batch_set, self.config))
                     # yield the data beyond prefetch range
                     while len(futures) >= self.prefetch:
                         future = futures.pop(0)
@@ -193,6 +255,14 @@ class Data:
             # yield the remaining data
             for future in futures:
                 yield future.result()
+
+    def _gen_batches(self, dataset, epoch_steps, num_epochs=1, start=0,
+        shuffle=False):
+        # packed dataset
+        if self.packed:
+            return self._gen_batches_packed(dataset, epoch_steps, num_epochs, start)
+        else:
+            return self._gen_batches_normal(dataset, epoch_steps, num_epochs, start, shuffle)
 
     def gen_main(self, start=0):
         return self._gen_batches(self.main_set, self.epoch_steps, self.num_epochs,

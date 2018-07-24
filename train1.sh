@@ -1,3 +1,4 @@
+python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_npz" --packed --out-channels 5994 --processes 2 --max-steps 511000 --random-seed 0 --device /gpu:0 --postfix 133
 
 exit
 

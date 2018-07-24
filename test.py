@@ -169,7 +169,7 @@ def main(argv=None):
     argp.add_argument('--dtype', type=int, default=2)
     argp.add_argument('--data-format', default='NCHW')
     argp.add_argument('--in-channels', type=int, default=1)
-    argp.add_argument('--out-channels', type=int, default=5994)
+    argp.add_argument('--out-channels', type=int)
     # pre-processing parameters
     Data.add_arguments(argp, True)
     # model parameters
