@@ -38,9 +38,9 @@ class Data:
         argp.add_argument('--group-size', type=int, default=4)
         # sample parameters
         argp.add_argument('--pp-duration', type=int, default=2000 if test else 1000)
-        argp.add_argument('--pp-smooth', type=float, default=0 if test else 0.1)
+        argp.add_argument('--pp-smooth', type=float, default=0 if test else 0)
         argp.add_argument('--pp-noise', type=float, default=0 if test else 0.7)
-        argp.add_argument('--pp-amplitude', type=int, default=0 if test else 20)
+        argp.add_argument('--pp-amplitude', type=int, default=0 if test else 0)
 
     @staticmethod
     def group_shuffle(dataset, batch_size, shuffle, group_size):
@@ -213,7 +213,7 @@ class DataPP:
             data = ndimage.gaussian_filter1d(data, smooth_scale, truncate=2.0)
         # add noise
         noise_prob = config.pp_noise
-        noise_std = 0.025
+        noise_std = 0.01
         noise_smooth_prob = 0.8
         noise_smooth_std = 1.5
         while cls.active_prob(noise_prob):
