@@ -11,24 +11,21 @@ class SRN:
         self.dtype = tf.float32
         self.data_format = DATA_FORMAT
         self.in_channels = 1
-        self.out_channels = 256
-        self.batch_size = None
-        self.patch_height = None
-        self.patch_width = None
+        self.out_channels = None
         # model parameters
-        self.embed_size = 512
-        self.batch_norm = 0.999
+        self.embed_size = None
+        self.batch_norm = None
         # train parameters
         self.random_seed = None
-        self.dropout = 0
-        self.var_ema = 0.999
+        self.dropout = None
+        self.var_ema = None
         # loss parameters
-        self.triplet_margin = 1.0
+        self.triplet_margin = None
         # generator parameters
         self.generator_acti = ACTIVATION
-        self.generator_wd = 1e-6
-        self.generator_lr = 1e-3
-        self.generator_lr_step = 1000
+        self.generator_wd = None
+        self.generator_lr = None
+        self.generator_lr_step = None
         self.generator_vkey = 'generator_var'
         self.generator_lkey = 'generator_loss'
         # collections
@@ -48,7 +45,7 @@ class SRN:
     @staticmethod
     def add_arguments(argp):
         # model parameters
-        argp.add_argument('--embed-size', type=int, default=512)
+        argp.add_argument('--embed-size', type=int, default=64)
         argp.add_argument('--batch-norm', type=float, default=0.999)
         # training parameters
         argp.add_argument('--dropout', type=float, default=0)
@@ -88,14 +85,15 @@ class SRN:
             weights_regularizer=regularizer, variables_collections=collections)
         return last
 
-    def EBlock(self, last, channels, resblocks=1, kernel=[1, 4], stride=[1, 2], format=DATA_FORMAT,
+    def EBlock(self, last, channels, resblocks=1, bottleneck=True,
+        kernel=[1, 3], stride=[1, 2], format=DATA_FORMAT,
         activation=ACTIVATION, normalizer=None, regularizer=None, collections=None):
         initializer = tf.initializers.variance_scaling(
             1.0, 'fan_in', 'normal', self.random_seed, self.dtype)
         skip = last
         in_channels = skip.get_shape()[-3 if format == 'NCHW' else -1]
         if activation: last = activation(last)
-        if in_channels > channels:
+        if bottleneck and in_channels > channels:
             last = slim.conv2d(last, channels,
                 [1, 1], [1, 1], 'SAME', format,
                 1, activation, None, weights_initializer=initializer,
@@ -131,7 +129,7 @@ class SRN:
             # function objects
             activation = self.generator_acti
             if self.batch_norm > 0:
-                normalizer = lambda x: slim.batch_norm(x, 0.999, center=True, scale=False,
+                normalizer = lambda x: slim.batch_norm(x, self.batch_norm, center=True, scale=False,
                     is_training=self.g_training, data_format=format, renorm=False)
             else:
                 normalizer = None
@@ -141,34 +139,44 @@ class SRN:
                 last = self.InBlock(last, 32, [1, 7], [1, 1], format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_1'):
-                last = self.EBlock(last, 32, 0, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 32, 0, True,
+                    kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_2'):
-                last = self.EBlock(last, 32, 1, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 32, 1, True,
+                    kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_3'):
-                last = self.EBlock(last, 32, 1, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 32, 1, True,
+                    kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_4'):
-                last = self.EBlock(last, 48, 2, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 48, 2, True,
+                    kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_5'):
-                last = self.EBlock(last, 48, 2, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 48, 2, True,
+                    kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_6'):
-                last = self.EBlock(last, 48, 2, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 48, 2, True,
+                    kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_7'):
-                last = self.EBlock(last, 48, 3, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 48, 3, True,
+                    kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_8'):
-                last = self.EBlock(last, 64, 3, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 64, 3, True,
+                    kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_9'):
-                last = self.EBlock(last, 64, 3, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 64, 3, True,
+                    kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_10'):
-                last = self.EBlock(last, 64, 3, kernel1, stride1, format, activation,
+                last = self.EBlock(last, 64, 3, True,
+                    kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('GlobalAveragePooling'):
                 last = tf.reduce_mean(last, [-2, -1] if format == 'NCHW' else [-3, -2])
@@ -256,6 +264,8 @@ class SRN:
         self.embeddings = tf.identity(self.embeddings, name='Embedding')
         # outputs
         self.outputs = tf.identity(self.outputs, name='Output')
+        # all the saver variables
+        self.svars = self.g_svars
         # all the restore variables
         self.rvars = self.g_rvars
         # return outputs

@@ -66,7 +66,7 @@ def main(argv=None):
     # parameters
     argp.add_argument('dataset')
     argp.add_argument('output_dir')
-    argp.add_argument('--num-epochs', type=int, default=24)
+    argp.add_argument('--num-epochs', type=int, default=1)
     argp.add_argument('--max-steps', type=int)
     argp.add_argument('--random-seed', type=int)
     argp.add_argument('--log-frequency', type=int, default=1000)
