@@ -240,6 +240,7 @@ used Triplet Loss (batch_all)
 ## 103
 
 EBlocks/channels: 32, 32, 32, 48, 48, 48, 48, 64, 64, 64
+EBlocks/ResBlocks: 0, 1, 1, 2, 2, 2, 3, 3, 3, 3
 out-channels: 256
 
 ## 104
@@ -374,5 +375,38 @@ group size: 2 => 4
 ## 130
 
 Center Loss
+
+## 131
+
+Batch All Triplet
+embed size: 512 => 64
+
+## 132
+
+(unchanged)
+Center Loss
+embed size: 512 => 64
+
+## 133
+
+[model2] Dense Connection
+InBlock-EBlock/channels: 32, 16, 16, 16, 16, 16, 16
+
+## 134
+
+[model1] Residual Connection
+InBlock-EBlock/channels: 16, 32, 48, 64, 80, 96, 112, 128
+
+## 135
+
+[model2]
+
+InBlock-EBlock/channels: 32, 16, 16, 24, 24, 32, 32, 40, 40
+InBlock-EBlock/ResBlocks: 0, 0, 1, 1, 2, 2, 2, 2, 2
+
+## 136
+
+[model1]
+Center Loss: fixed bias, decay=0.9
 
 

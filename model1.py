@@ -213,13 +213,12 @@ class SRN:
             # accuracy
             accuracy = tf.contrib.metrics.accuracy(labels, tf.argmax(outputs, -1))
             update_ops.append(self.loss_summary('accuracy', accuracy, self.g_log_losses))
-            '''
             # center loss
-            from center_loss import get_center_loss
+            from center_loss import get_center_loss_unbias
             lambda_ = 0.003
-            center_loss, centers, centers_update_op = get_center_loss(embeddings, labels, self.out_channels)
+            center_loss, centers, centers_update_ops = get_center_loss_unbias(embeddings, labels, self.out_channels)
             tf.losses.add_loss(center_loss * lambda_)
-            update_ops.append(centers_update_op)
+            update_ops.extend(centers_update_ops)
             update_ops.append(self.loss_summary('center_loss', center_loss, self.g_log_losses))
             update_ops.append(self.loss_summary('fraction_positive_triplets', 0, self.g_log_losses))
             '''
@@ -230,6 +229,7 @@ class SRN:
             tf.losses.add_loss(triplet_loss)
             update_ops.append(self.loss_summary('triplet_loss', triplet_loss, self.g_log_losses))
             update_ops.append(self.loss_summary('fraction_positive_triplets', fraction, self.g_log_losses))
+            '''
             # total loss
             losses = tf.losses.get_losses(loss_key)
             g_main_loss = tf.add_n(losses, 'g_main_loss')

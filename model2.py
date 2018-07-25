@@ -147,19 +147,27 @@ class SRN:
                     kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_3'):
-                last = self.EBlock(last, 16, 1, False,
+                last = self.EBlock(last, 24, 1, False,
                     kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_4'):
-                last = self.EBlock(last, 16, 2, False,
+                last = self.EBlock(last, 24, 2, False,
                     kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_5'):
-                last = self.EBlock(last, 16, 2, False,
+                last = self.EBlock(last, 32, 2, False,
                     kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_6'):
-                last = self.EBlock(last, 16, 2, False,
+                last = self.EBlock(last, 32, 2, False,
+                    kernel1, stride1, format, activation,
+                    normalizer, regularizer, var_key)
+            with tf.variable_scope('EBlock_7'):
+                last = self.EBlock(last, 40, 2, False,
+                    kernel1, stride1, format, activation,
+                    normalizer, regularizer, var_key)
+            with tf.variable_scope('EBlock_8'):
+                last = self.EBlock(last, 40, 2, False,
                     kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('GlobalAveragePooling'):
@@ -206,11 +214,11 @@ class SRN:
             update_ops.append(self.loss_summary('accuracy', accuracy, self.g_log_losses))
             '''
             # center loss
-            from center_loss import get_center_loss
+            from center_loss import get_center_loss_unbias
             lambda_ = 0.003
-            center_loss, centers, centers_update_op = get_center_loss(embeddings, labels, self.out_channels)
+            center_loss, centers, centers_update_ops = get_center_loss_unbias(embeddings, labels, self.out_channels)
             tf.losses.add_loss(center_loss * lambda_)
-            update_ops.append(centers_update_op)
+            update_ops.extend(centers_update_ops)
             update_ops.append(self.loss_summary('center_loss', center_loss, self.g_log_losses))
             update_ops.append(self.loss_summary('fraction_positive_triplets', 0, self.g_log_losses))
             '''
