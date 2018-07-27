@@ -3,7 +3,7 @@ import numpy as np
 import os
 from utils import eprint, reset_random, create_session
 from data import Data
-from model1 import SRN
+from model2 import SRN
 
 # class for training session
 class Train:

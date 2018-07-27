@@ -139,35 +139,43 @@ class SRN:
                 last = self.InBlock(last, 32, [1, 7], [1, 1], format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_1'):
-                last = self.EBlock(last, 16, 0, False,
+                last = self.EBlock(last, 32, 0, False,
                     kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_2'):
-                last = self.EBlock(last, 16, 1, False,
+                last = self.EBlock(last, 32, 1, False,
                     kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_3'):
-                last = self.EBlock(last, 24, 1, False,
+                last = self.EBlock(last, 40, 1, False,
                     kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_4'):
-                last = self.EBlock(last, 24, 2, False,
+                last = self.EBlock(last, 40, 2, False,
                     kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_5'):
-                last = self.EBlock(last, 32, 2, False,
+                last = self.EBlock(last, 48, 2, False,
                     kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_6'):
-                last = self.EBlock(last, 32, 2, False,
+                last = self.EBlock(last, 48, 2, False,
                     kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_7'):
-                last = self.EBlock(last, 40, 2, False,
+                last = self.EBlock(last, 56, 2, False,
                     kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('EBlock_8'):
-                last = self.EBlock(last, 40, 2, False,
+                last = self.EBlock(last, 56, 3, False,
+                    kernel1, stride1, format, activation,
+                    normalizer, regularizer, var_key)
+            with tf.variable_scope('EBlock_9'):
+                last = self.EBlock(last, 64, 3, False,
+                    kernel1, stride1, format, activation,
+                    normalizer, regularizer, var_key)
+            with tf.variable_scope('EBlock_10'):
+                last = self.EBlock(last, 64, 3, False,
                     kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('GlobalAveragePooling'):

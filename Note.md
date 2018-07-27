@@ -400,7 +400,6 @@ InBlock-EBlock/channels: 16, 32, 48, 64, 80, 96, 112, 128
 ## 135
 
 [model2]
-
 InBlock-EBlock/channels: 32, 16, 16, 24, 24, 32, 32, 40, 40
 InBlock-EBlock/ResBlocks: 0, 0, 1, 1, 2, 2, 2, 2, 2
 
@@ -408,5 +407,22 @@ InBlock-EBlock/ResBlocks: 0, 0, 1, 1, 2, 2, 2, 2, 2
 
 [model1]
 Center Loss: fixed bias, decay=0.9
+
+## 138
+
+(unchanged)
+[model2]
+Triplet Loss
+InBlock-EBlock/channels: 32, 32, 32, 32, 32, 32, 32, 32
+InBlock-EBlock/ResBlocks: 0, 0, 1, 1, 2, 2, 3, 3
+
+## 137
+
+[model2]
+Triplet Loss
+InBlock-EBlock/channels: 32, 32, 32, 40, 40, 48, 48, 56, 56, 64, 64
+InBlock-EBlock/ResBlocks: 0, 0, 1, 1, 2, 2, 2, 2, 3, 3, 3
+
+## 139
 
 
