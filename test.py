@@ -68,7 +68,6 @@ class Test:
         # create testing directory
         if not os.path.exists(self.train_dir):
             raise FileNotFoundError('Could not find folder {}'.format(self.train_dir))
-            sys.exit()
         if os.path.exists(self.test_dir):
             eprint('Confirm removing {}\n[Y/n]'.format(self.test_dir))
             if input() != 'Y':
@@ -109,6 +108,7 @@ class Test:
             ckpt = tf.train.latest_checkpoint(self.train_dir)
         else:
             ckpt = os.path.join(self.train_dir, self.model_file)
+        eprint('Loading model: {}'.format(ckpt))
         self.saver.restore(sess, ckpt)
         # to be fetched
         fetch = [self.model.losses_acc, self.model.embeddings, self.model.outputs]
