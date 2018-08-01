@@ -9,6 +9,7 @@ class DataPack:
         self.random_seed = None
         self.log_frequency = None
         self.batch_size = None
+        self.test = None
         # copy all the properties from config object
         self.config = config
         self.__dict__.update(config.__dict__)
@@ -71,8 +72,10 @@ def main(argv=None):
     argp.add_argument('--random-seed', type=int)
     argp.add_argument('--log-frequency', type=int, default=1000)
     argp.add_argument('--batch-size', type=int, default=72)
+    argp.add_argument('--test', action='store_true')
     # pre-processing parameters
-    Data.add_arguments(argp)
+    args = argp.parse_args(argv)
+    Data.add_arguments(argp, args.test)
     # parse
     args = argp.parse_args(argv)
     # data pack
