@@ -1,4 +1,4 @@
-python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_npz" --packed --out-channels 5994 --processes 2 --max-steps 511000 --random-seed 0 --device /gpu:1 --postfix 138
+python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_npz" --packed --out-channels 5994 --processes 2 --max-steps 2047000 --random-seed 0 --device /gpu:1 --postfix 148
 
 exit
 
@@ -19,3 +19,13 @@ python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_wav" --processes 2 --t
 python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_wav" --processes 2 --threads 2 --max-steps 511000 --random-seed 0 --device /gpu:1 --postfix 132 --embed-size 64 --restore
 
 python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_npz" --packed --out-channels 5994 --processes 2 --max-steps 511000 --random-seed 0 --device /gpu:1 --postfix 134
+python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_npz" --packed --out-channels 5994 --processes 2 --max-steps 511000 --random-seed 0 --device /gpu:1 --postfix 138
+
+python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_npz" --packed --out-channels 5994 --processes 2 --max-steps 127000 --random-seed 0 --device /gpu:1 --postfix 139 --center-decay 0.5
+python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_npz" --packed --out-channels 5994 --processes 2 --max-steps 127000 --random-seed 0 --device /gpu:1 --postfix 140 --center-decay 0.9
+python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_npz" --packed --out-channels 5994 --processes 2 --max-steps 127000 --random-seed 0 --device /gpu:1 --postfix 141 --center-decay 0.95
+python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_npz" --packed --out-channels 5994 --processes 2 --max-steps 2047000 --random-seed 0 --device /gpu:1 --postfix 141 --center-decay 0.95 --restore
+python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_npz" --packed --out-channels 5994 --processes 2 --max-steps 127000 --random-seed 0 --device /gpu:1 --postfix 142 --center-decay 0.99
+python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_npz2" --packed --out-channels 5994 --processes 2 --max-steps 2047000 --random-seed 0 --device /gpu:1 --postfix 145 --generator-lr 1.4e-3
+
+python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_npz" --packed --out-channels 5994 --processes 2 --max-steps 2047000 --random-seed 0 --device /gpu:1 --postfix 146 --center-decay 0.95 --generator-lr 1.4e-3

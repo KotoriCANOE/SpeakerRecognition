@@ -387,6 +387,13 @@ embed size: 512 => 64
 Center Loss
 embed size: 512 => 64
 
+##
+
+use packed data to speed up training
+pp-smooth: 0.1 => 0
+pp-amplitude: 20 => 0
+noise_std: 0.025 => 0.01
+
 ## 133
 
 [model2] Dense Connection
@@ -424,5 +431,56 @@ InBlock-EBlock/channels: 32, 32, 32, 40, 40, 48, 48, 56, 56, 64, 64
 InBlock-EBlock/ResBlocks: 0, 0, 1, 1, 2, 2, 2, 2, 3, 3, 3
 
 ## 139
+
+Center Loss: decay=0.5
+
+## 140
+
+Center Loss: decay=0.9
+
+## 141
+
+(chosen)
+Center Loss: decay=0.95
+
+## 142
+
+Center Loss: decay=0.99
+
+## 143
+
+Triplet Loss
+(original) lr=1e-3, t_mul=2.0, m_mul=0.75, alpha=0
+SGDR: lr=4e-3, t_mul=2.0, m_mul=0.75, alpha=1e-2
+
+##
+
+(unchanged)
+Triplet Loss
+SGDR: lr=8e-3, t_mul=2.0, m_mul=0.75, alpha=1e-2
+
+## 144
+
+Triplet Loss
+SGDR: lr=1.4e-3, t_mul=2.0, m_mul=0.9, alpha=1e-2
+
+## 145
+
+(unchanged)
+revert to previous DataPP
+
+## 146
+
+Center Loss (decay=0.95)
+
+## 147
+
+Triplet Loss
+SGDR: lr=1e-3, t_mul=2.0, m_mul=1.0, alpha=1e-1
+exponential decay: step=1000, rate=0.999
+
+## 148
+
+Center Loss (decay=0.95)
 
 

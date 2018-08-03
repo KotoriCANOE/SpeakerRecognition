@@ -55,6 +55,7 @@ class SRN:
         argp.add_argument('--generator-lr-step', type=int, default=1000)
         # loss parameters
         argp.add_argument('--triplet-margin', type=float, default=0.5)
+        argp.add_argument('--center-decay', type=float, default=0.95)
 
     def ResBlock(self, last, channels, kernel=[1, 3], stride=[1, 1], biases=True, format=DATA_FORMAT,
         dilate=1, activation=ACTIVATION, normalizer=None,
@@ -224,12 +225,13 @@ class SRN:
             # center loss
             from center_loss import get_center_loss_unbias
             lambda_ = 0.003
-            center_loss, centers, centers_update_ops = get_center_loss_unbias(embeddings, labels, self.out_channels)
+            center_loss, centers, centers_update_ops = get_center_loss_unbias(
+                embeddings, labels, self.out_channels, self.center_decay)
             tf.losses.add_loss(center_loss * lambda_)
             update_ops.extend(centers_update_ops)
             update_ops.append(self.loss_summary('center_loss', center_loss, self.g_log_losses))
             update_ops.append(self.loss_summary('fraction_positive_triplets', 0, self.g_log_losses))
-            '''
+           '''
             # triplet loss
             from triplet_loss import batch_all, batch_hard
             triplet_loss, fraction = batch_all(labels, embeddings, self.triplet_margin)
@@ -293,7 +295,8 @@ class SRN:
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         # learning rate
         g_lr = tf.train.cosine_decay_restarts(self.generator_lr,
-            global_step, self.generator_lr_step)
+            global_step, self.generator_lr_step, t_mul=2.0, m_mul=1.0, alpha=1e-1)
+        g_lr = tf.train.exponential_decay(g_lr, global_step, 1000, 0.999)
         self.train_sums.append(tf.summary.scalar('generator_lr', g_lr))
         # optimizer
         g_opt = tf.contrib.opt.NadamOptimizer(g_lr)
