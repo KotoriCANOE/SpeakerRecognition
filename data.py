@@ -1,12 +1,17 @@
-from pydub import AudioSegment
+from abc import ABCMeta, abstractmethod
 import numpy as np
+import librosa
 from scipy import ndimage
-from scipy.io import wavfile
 import os
 import random
 from utils import eprint, listdir_files
 
-class Data:
+# ======
+# base class
+
+class DataBase:
+    __metaclass__ = ABCMeta
+
     def __init__(self, config):
         self.dataset = None
         self.num_epochs = None
@@ -40,6 +45,7 @@ class Data:
         argp.set_defaults(shuffle=True)
         argp.add_argument('--group-size', type=int, default=4)
         # sample parameters
+        argp.add_argument('--pp-rate', type=int, default=16000)
         argp.add_argument('--pp-duration', type=int, default=2000 if test else 1000)
         argp.add_argument('--pp-smooth', type=float, default=0 if test else 0)
         argp.add_argument('--pp-noise', type=float, default=0 if test else 0.7)
@@ -89,42 +95,33 @@ class Data:
         else:
             self.num_epochs = (self.max_steps + self.epoch_steps - 1) // self.epoch_steps
         self.main_set = data_list
-        # print
-        eprint('main set: {}\nepoch steps: {}\nnum epochs: {}\nmax steps: {}\n'
-            .format(self.epoch_size, self.epoch_steps, self.num_epochs, self.max_steps))
 
-    def get_files(self, num_ids=None):
-        # packed dataset
-        if self.packed:
-            return self.get_files_packed()
-        # non-packed dataset
-        dataset_ids = os.listdir(self.dataset)[:num_ids]
-        num_ids = len(dataset_ids)
-        self.num_ids = num_ids
-        dataset_ids = [os.path.join(self.dataset, i) for i in dataset_ids]
-        data_list = []
-        for i in range(num_ids):
-            files = listdir_files(dataset_ids[i], filter_ext=['.wav', '.m4a'])
-            for f in files:
-                data_list.append((i, f))
-        self.group_shuffle(data_list, self.batch_size, self.shuffle, self.group_size)
-        # val set
-        if self.val_size is not None:
-            assert self.val_size < len(data_list)
-            self.val_steps = self.val_size // self.batch_size
-            self.val_size = self.val_steps * self.batch_size
-            self.val_set = data_list[:self.val_size]
-            data_list = data_list[self.val_size:]
-            eprint('validation set: {}'.format(self.val_size))
-        # main set
-        assert self.batch_size <= len(data_list)
-        self.epoch_steps = len(data_list) // self.batch_size
-        self.epoch_size = self.epoch_steps * self.batch_size
-        if self.max_steps is None:
-            self.max_steps = self.epoch_steps * self.num_epochs
-        else:
-            self.num_epochs = (self.max_steps + self.epoch_steps - 1) // self.epoch_steps
-        self.main_set = data_list[:self.epoch_size]
+    @abstractmethod
+    def get_files_origin(self):
+        pass
+
+    def get_files(self):
+        if self.packed: # packed dataset
+            self.get_files_packed()
+        else: # non-packed dataset
+            data_list = self.get_files_origin()
+            # val set
+            if self.val_size is not None:
+                assert self.val_size < len(data_list)
+                self.val_steps = self.val_size // self.batch_size
+                self.val_size = self.val_steps * self.batch_size
+                self.val_set = data_list[:self.val_size]
+                data_list = data_list[self.val_size:]
+                eprint('validation set: {}'.format(self.val_size))
+            # main set
+            assert self.batch_size <= len(data_list)
+            self.epoch_steps = len(data_list) // self.batch_size
+            self.epoch_size = self.epoch_steps * self.batch_size
+            if self.max_steps is None:
+                self.max_steps = self.epoch_steps * self.num_epochs
+            else:
+                self.num_epochs = (self.max_steps + self.epoch_steps - 1) // self.epoch_steps
+            self.main_set = data_list[:self.epoch_size]
         # print
         eprint('main set: {}\nepoch steps: {}\nnum epochs: {}\nmax steps: {}\n'
             .format(self.epoch_size, self.epoch_steps, self.num_epochs, self.max_steps))
@@ -132,23 +129,17 @@ class Data:
     @staticmethod
     def process_sample(id_, file, config):
         # parameters
+        sample_rate = config.pp_rate
         slice_duration = config.pp_duration
         # read from file
-        if os.path.splitext(file)[1] == '.wav':
-            sample_rate, audio = wavfile.read(file)
-            data = audio
-            audio_max = np.max(data)
-        else:
-            audio = AudioSegment.from_file(file)
-            #channels = audio.channels
-            sample_rate = audio.frame_rate
-            audio_max = audio.max
-            # to np.array
-            data = np.array(audio.get_array_of_samples(), copy=False)
+        data, rate = librosa.load(file, sr=sample_rate if sample_rate > 0 else None, mono=True)
+        audio_max = np.max(data)
         # slice
         samples = data.shape[-1]
-        slice_samples = slice_duration * sample_rate // 1000
-        if samples > slice_samples:
+        slice_samples = slice_duration * rate // 1000
+        if slice_samples <= 0:
+            pass
+        elif samples > slice_samples:
             # randomly cropping
             start = random.randint(0, samples - slice_samples)
             data = data[start : start + slice_samples]
@@ -160,8 +151,6 @@ class Data:
         data = data.astype(np.float32) * norm_factor
         # random data manipulation
         data = DataPP.process(data, config)
-        # convert to CHW format
-        data = np.expand_dims(np.expand_dims(data, 0), 0)
         # label
         label = np.array(id_, dtype=np.int64)
         # return
@@ -189,9 +178,16 @@ class Data:
                     _input, _label = future.result()
                     inputs.append(_input)
                     labels.append(_label)
+        # zero padding if not of the same length
+        if config.pp_duration <= 0:
+            max_samples = max([i.shape[-1] for i in inputs])
+            inputs = [np.pad(i, (0, max_samples - i.shape[-1]), 'constant') for i in inputs]
         # stack data to form a batch
         inputs = np.stack(inputs)
         labels = np.stack(labels)
+        # convert to CHW format
+        inputs = np.expand_dims(np.expand_dims(inputs, 1), 1)
+        # return
         return inputs, labels
 
     @classmethod
@@ -315,3 +311,64 @@ class DataPP:
             scale = np.abs(np.random.normal(0.0, std))
         scale += mean
         return scale
+
+# ======
+# derived classes
+
+class DataVoxCeleb(DataBase):
+    def get_files_origin(self):
+        dataset_ids = os.listdir(self.dataset)
+        num_ids = len(dataset_ids)
+        self.num_ids = num_ids
+        dataset_ids = [os.path.join(self.dataset, i) for i in dataset_ids]
+        data_list = []
+        for i in range(num_ids):
+            files = listdir_files(dataset_ids[i], filter_ext=['.wav', '.m4a', '.mp3'])
+            for f in files:
+                data_list.append((i, f))
+        self.group_shuffle(data_list, self.batch_size, self.shuffle, self.group_size)
+        # val set
+        if self.val_size is not None:
+            assert self.val_size < len(data_list)
+            self.val_steps = self.val_size // self.batch_size
+            self.val_size = self.val_steps * self.batch_size
+            self.val_set = data_list[:self.val_size]
+            data_list = data_list[self.val_size:]
+            eprint('validation set: {}'.format(self.val_size))
+        # main set
+        assert self.batch_size <= len(data_list)
+        self.epoch_steps = len(data_list) // self.batch_size
+        self.epoch_size = self.epoch_steps * self.batch_size
+        if self.max_steps is None:
+            self.max_steps = self.epoch_steps * self.num_epochs
+        else:
+            self.num_epochs = (self.max_steps + self.epoch_steps - 1) // self.epoch_steps
+        self.main_set = data_list[:self.epoch_size]
+        # print
+        eprint('main set: {}\nepoch steps: {}\nnum epochs: {}\nmax steps: {}\n'
+            .format(self.epoch_size, self.epoch_steps, self.num_epochs, self.max_steps))
+
+class DataSpeech(DataBase):
+    @staticmethod
+    def ordered_ids(ids):
+        # unique ids
+        unique_ids = np.unique(ids)
+        # map to ordered ids
+        mapping = {d: i for i, d in enumerate(unique_ids)}
+        # ordered_ids = np.vectorize(lambda x: mapping[x])(ids)
+        ordered_ids = list(map(lambda x: mapping[x], ids))
+        # return
+        return ordered_ids
+
+    def get_files_origin(self):
+        import re
+        # get all the audio files
+        files = listdir_files(self.dataset, filter_ext=['.wav', '.m4a', '.mp3'])
+        regex = re.compile(r'^(.*[/\\])?(.+?)[-_](.+?)(\..+?)$')
+        matches = [re.findall(regex, f)[0][1:3] for f in files]
+        person_ids, speech_ids = [self.ordered_ids(list(i)) for i in zip(*matches)]
+        # data list
+        data_list = [(speech_ids[i], files[i]) for i in range(len(files))]
+        self.group_shuffle(data_list, self.batch_size, self.shuffle, self.group_size)
+        # return
+        return data_list

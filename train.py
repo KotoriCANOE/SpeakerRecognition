@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 import os
 from utils import eprint, reset_random, create_session
-from data import Data
+from data import DataVoxCeleb as Data
 from model2 import SRN
 
 # class for training session
