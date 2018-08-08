@@ -231,7 +231,7 @@ class SRN:
             update_ops.extend(centers_update_ops)
             update_ops.append(self.loss_summary('center_loss', center_loss, self.g_log_losses))
             update_ops.append(self.loss_summary('fraction_positive_triplets', 0, self.g_log_losses))
-           '''
+            '''
             # triplet loss
             from triplet_loss import batch_all, batch_hard
             triplet_loss, fraction = batch_all(labels, embeddings, self.triplet_margin)

@@ -450,7 +450,7 @@ Center Loss: decay=0.99
 ## 143
 
 Triplet Loss
-(original) lr=1e-3, t_mul=2.0, m_mul=0.75, alpha=0
+(original) lr=1e-3, t_mul=2.0, m_mul=1.0, alpha=0
 SGDR: lr=4e-3, t_mul=2.0, m_mul=0.75, alpha=1e-2
 
 ##
