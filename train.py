@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 import os
 from utils import eprint, reset_random, create_session
-from data import DataVoxCeleb as Data
+from data import DataSpeech as Data
 from model2 import SRN
 
 # class for training session
@@ -263,11 +263,12 @@ def main(argv=None):
     argp.add_argument('--in-channels', type=int, default=1)
     argp.add_argument('--out-channels', type=int)
     # pre-processing parameters
-    Data.add_arguments(argp)
+    Data.add_arguments(argp, False)
     # model parameters
     SRN.add_arguments(argp)
     # parse
     args = argp.parse_args(argv)
+    Data.parse_arguments(args)
     args.train_dir = args.train_dir.format(postfix=args.postfix)
     args.dtype = [tf.int8, tf.float16, tf.float32, tf.float64][args.dtype]
     # run training

@@ -34,30 +34,49 @@ class DataBase:
 
     @staticmethod
     def add_arguments(argp, test=False):
-        argp.add_argument('--packed', action='store_true')
+        def bool_argument(argp, name, default):
+            argp.add_argument('--' + name, dest=name, action='store_true')
+            argp.add_argument('--no-' + name, dest=name, action='store_false')
+            eval('argp.set_defaults({}={})'.format(name, 'True' if default else 'False'))
+        # base parameters
+        bool_argument(argp, 'packed', False)
+        bool_argument(argp, 'test', test)
         # pre-processing parameters
         argp.add_argument('--processes', type=int, default=2)
         argp.add_argument('--threads', type=int, default=4)
         argp.add_argument('--prefetch', type=int, default=256)
         argp.add_argument('--buffer-size', type=int, default=1024)
-        argp.add_argument('--shuffle', dest='shuffle', action='store_true')
-        argp.add_argument('--no-shuffle', dest='shuffle', action='store_false')
-        argp.set_defaults(shuffle=True)
+        bool_argument(argp, 'shuffle', True)
         argp.add_argument('--group-size', type=int, default=4)
         # sample parameters
         argp.add_argument('--pp-rate', type=int, default=16000)
-        argp.add_argument('--pp-duration', type=int, default=2000 if test else 1000)
-        argp.add_argument('--pp-smooth', type=float, default=0 if test else 0)
-        argp.add_argument('--pp-noise', type=float, default=0 if test else 0.7)
-        argp.add_argument('--pp-amplitude', type=int, default=0 if test else 0)
+        argp.add_argument('--pp-duration', type=int)
+        argp.add_argument('--pp-smooth', type=float)
+        argp.add_argument('--pp-noise', type=float)
+        argp.add_argument('--pp-amplitude', type=int)
+
+    @staticmethod
+    def parse_arguments(args):
+        def argchoose(name, cond, tv, fv):
+            if args.__getattribute__(name) is None:
+                args.__setattr__(name, tv if cond else fv)
+        argchoose('pp_duration', args.test, 2000, 1000)
+        argchoose('pp_smooth', args.test, 0, 0)
+        argchoose('pp_noise', args.test, 0, 0.7)
+        argchoose('pp_amplitude', args.test, 0, 0)
 
     @staticmethod
     def group_shuffle(dataset, batch_size, shuffle, group_size):
+        # random shuffle
         if shuffle:
             random.shuffle(dataset)
+        # make sure the length is divisible by batch_size
+        while len(dataset) % batch_size > 0:
+            dataset.pop()
         upper = len(dataset)
         assert batch_size % group_size == 0
         batch_groups = batch_size // group_size
+        # loop over batches
         for i in range(0, upper, batch_size):
             j = i + batch_groups
             ids = [d[0] for d in dataset[i : j]]
@@ -74,7 +93,6 @@ class DataBase:
                     j += 1
                     if j >= i + batch_size:
                         break
-        return dataset
 
     def get_files_packed(self):
         data_list = os.listdir(self.dataset)
@@ -221,7 +239,7 @@ class DataBase:
             for future in futures:
                 yield future.result()
 
-    def _gen_batches_normal(self, dataset, epoch_steps, num_epochs=1, start=0,
+    def _gen_batches_origin(self, dataset, epoch_steps, num_epochs=1, start=0,
         shuffle=False):
         _dataset = dataset
         max_steps = epoch_steps * num_epochs
@@ -258,7 +276,7 @@ class DataBase:
         if self.packed:
             return self._gen_batches_packed(dataset, epoch_steps, num_epochs, start)
         else:
-            return self._gen_batches_normal(dataset, epoch_steps, num_epochs, start, shuffle)
+            return self._gen_batches_origin(dataset, epoch_steps, num_epochs, start, shuffle)
 
     def gen_main(self, start=0):
         return self._gen_batches(self.main_set, self.epoch_steps, self.num_epochs,
@@ -321,41 +339,33 @@ class DataVoxCeleb(DataBase):
         num_ids = len(dataset_ids)
         self.num_ids = num_ids
         dataset_ids = [os.path.join(self.dataset, i) for i in dataset_ids]
+        # data list
         data_list = []
         for i in range(num_ids):
             files = listdir_files(dataset_ids[i], filter_ext=['.wav', '.m4a', '.mp3'])
             for f in files:
                 data_list.append((i, f))
         self.group_shuffle(data_list, self.batch_size, self.shuffle, self.group_size)
-        # val set
-        if self.val_size is not None:
-            assert self.val_size < len(data_list)
-            self.val_steps = self.val_size // self.batch_size
-            self.val_size = self.val_steps * self.batch_size
-            self.val_set = data_list[:self.val_size]
-            data_list = data_list[self.val_size:]
-            eprint('validation set: {}'.format(self.val_size))
-        # main set
-        assert self.batch_size <= len(data_list)
-        self.epoch_steps = len(data_list) // self.batch_size
-        self.epoch_size = self.epoch_steps * self.batch_size
-        if self.max_steps is None:
-            self.max_steps = self.epoch_steps * self.num_epochs
-        else:
-            self.num_epochs = (self.max_steps + self.epoch_steps - 1) // self.epoch_steps
-        self.main_set = data_list[:self.epoch_size]
-        # print
-        eprint('main set: {}\nepoch steps: {}\nnum epochs: {}\nmax steps: {}\n'
-            .format(self.epoch_size, self.epoch_steps, self.num_epochs, self.max_steps))
+        # return
+        return data_list
 
 class DataSpeech(DataBase):
+    @staticmethod
+    def parse_arguments(args):
+        def argchoose(name, cond, tv, fv):
+            if args.__getattribute__(name) is None:
+                args.__setattr__(name, tv if cond else fv)
+        argchoose('pp_duration', args.test, 0, 0)
+        argchoose('pp_smooth', args.test, 0, 0)
+        argchoose('pp_noise', args.test, 0, 0.7)
+        argchoose('pp_amplitude', args.test, 0, 0)
+
     @staticmethod
     def ordered_ids(ids):
         # unique ids
         unique_ids = np.unique(ids)
         # map to ordered ids
         mapping = {d: i for i, d in enumerate(unique_ids)}
-        # ordered_ids = np.vectorize(lambda x: mapping[x])(ids)
         ordered_ids = list(map(lambda x: mapping[x], ids))
         # return
         return ordered_ids

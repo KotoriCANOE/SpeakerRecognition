@@ -1,3 +1,4 @@
+python train.py "$HOME/Datasets/Speech/Corpus" --out-channels 552 --processes 2 --max-steps 2047000 --random-seed 0 --device /gpu:0 --postfix 201 --embed-size 512 --batch-size 8 --group-size 2
 
 exit
 

@@ -1,7 +1,7 @@
 import numpy as np
 import os
 from utils import eprint, reset_random
-from data import DataVoxCeleb as Data
+from data import DataSpeech as Data
 
 class DataPack:
     def __init__(self, config):
@@ -72,12 +72,11 @@ def main(argv=None):
     argp.add_argument('--random-seed', type=int)
     argp.add_argument('--log-frequency', type=int, default=1000)
     argp.add_argument('--batch-size', type=int, default=72)
-    argp.add_argument('--test', action='store_true')
     # pre-processing parameters
-    args = argp.parse_args(argv)
-    Data.add_arguments(argp, args.test)
+    Data.add_arguments(argp, False)
     # parse
     args = argp.parse_args(argv)
+    Data.parse_arguments(args)
     # data pack
     data_pack = DataPack(args)
     data_pack()
