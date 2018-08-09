@@ -71,7 +71,7 @@ def main(argv=None):
     argp.add_argument('--max-steps', type=int)
     argp.add_argument('--random-seed', type=int)
     argp.add_argument('--log-frequency', type=int, default=1000)
-    argp.add_argument('--batch-size', type=int, default=72)
+    argp.add_argument('--batch-size', type=int)
     # pre-processing parameters
     Data.add_arguments(argp, False)
     # parse

@@ -164,7 +164,7 @@ def main(argv=None):
     argp.add_argument('--test-dir', default='./test{postfix}.tmp')
     argp.add_argument('--model-file')
     argp.add_argument('--log-file', default='test.log')
-    argp.add_argument('--batch-size', type=int, default=36)
+    argp.add_argument('--batch-size', type=int)
     # data parameters
     argp.add_argument('--dtype', type=int, default=2)
     argp.add_argument('--data-format', default='NCHW')

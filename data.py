@@ -50,16 +50,20 @@ class DataBase:
         argp.add_argument('--group-size', type=int, default=4)
         # sample parameters
         argp.add_argument('--pp-rate', type=int, default=16000)
-        argp.add_argument('--pp-duration', type=int)
+        argp.add_argument('--pp-duration', type=int,
+            help='0: no slicing, -: fixed slicing, +: random slicing')
         argp.add_argument('--pp-smooth', type=float)
         argp.add_argument('--pp-noise', type=float)
         argp.add_argument('--pp-amplitude', type=int)
 
     @staticmethod
     def parse_arguments(args):
-        def argchoose(name, cond, tv, fv):
+        def argdefault(name, value):
             if args.__getattribute__(name) is None:
-                args.__setattr__(name, tv if cond else fv)
+                args.__setattr__(name, value)
+        def argchoose(name, cond, tv, fv):
+            argdefault(name, tv if cond else fv)
+        argchoose('batch_size', args.test, 36, 72)
         argchoose('pp_duration', args.test, 2000, 1000)
         argchoose('pp_smooth', args.test, 0, 0)
         argchoose('pp_noise', args.test, 0, 0.7)
@@ -148,21 +152,20 @@ class DataBase:
     def process_sample(id_, file, config):
         # parameters
         sample_rate = config.pp_rate
-        slice_duration = config.pp_duration
+        slice_duration = np.abs(config.pp_duration)
         # read from file
-        data, rate = librosa.load(file, sr=sample_rate if sample_rate > 0 else None, mono=True)
+        data, rate = librosa.load(file, sr=sample_rate if sample_rate > 0 else None, mono=True,
+            offset=0.0, duration=slice_duration if config.pp_duration < 0 else None)
         audio_max = np.max(data)
-        # slice
         samples = data.shape[-1]
         slice_samples = slice_duration * rate // 1000
-        if slice_samples <= 0:
-            pass
-        elif samples > slice_samples:
+        # slice
+        if config.pp_duration > 0 and samples > slice_samples:
             # randomly cropping
             start = random.randint(0, samples - slice_samples)
             data = data[start : start + slice_samples]
-        elif samples < slice_samples:
-            # padding
+        # padding
+        if samples < slice_samples:
             data = np.pad(data, (0, slice_samples - samples), 'constant')
         # normalization
         norm_factor = 1 / audio_max
@@ -352,10 +355,13 @@ class DataVoxCeleb(DataBase):
 class DataSpeech(DataBase):
     @staticmethod
     def parse_arguments(args):
-        def argchoose(name, cond, tv, fv):
+        def argdefault(name, value):
             if args.__getattribute__(name) is None:
-                args.__setattr__(name, tv if cond else fv)
-        argchoose('pp_duration', args.test, 0, 0)
+                args.__setattr__(name, value)
+        def argchoose(name, cond, tv, fv):
+            argdefault(name, tv if cond else fv)
+        argchoose('batch_size', args.test, 20, 40)
+        argchoose('pp_duration', args.test, -4000, -2000)
         argchoose('pp_smooth', args.test, 0, 0)
         argchoose('pp_noise', args.test, 0, 0.7)
         argchoose('pp_amplitude', args.test, 0, 0)
