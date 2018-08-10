@@ -13,7 +13,7 @@ def create_session():
     return tf.Session(config=config)
 
 class AudioLoader:
-    def __init__(self, rate=16000, length=8.0, batch_size=4, processes=4, prefetch=16):
+    def __init__(self, rate=16000, length=8.0, batch_size=4, processes=4, prefetch=32):
         self.rate = rate
         self.length = length
         self.batch_size = batch_size
@@ -93,22 +93,25 @@ class TimbreNet:
         return [b for b in batch]
 
     # input a list of audio files
-    def __call__(self, ifiles, loader=None):
+    def __call__(self, ifiles, loader=None, log_frequency=500):
         import time
         # audio loader and inputs generator
         if loader is None:
             loader = AudioLoader()
         inputs_gen = loader(ifiles)
         # iterate over batches
-        tick = time.time()
+        last_time = time.time()
         embeddings = []
-        for inputs in inputs_gen:
+        for i, inputs in enumerate(inputs_gen):
             _embeddings = self.process_batch(inputs)
             embeddings.append(_embeddings)
-        tock = time.time()
+            if i % log_frequency == 0:
+                current_time = time.time()
+                duration = current_time - last_time
+                last_time = current_time
+                print('step {}: {} samples/sec'.format(i, loader.batch_size * log_frequency / duration))
         # concat over batches
         embeddings = np.concatenate(embeddings, axis=0)
-        print('Processed {} samples in {}s'.format(len(embeddings), tock - tick))
         return embeddings
 
 class Clusterer:
@@ -174,7 +177,9 @@ class Clusterer:
 def process_cluster(args, ifiles, opath, relative=True):
     if not os.path.exists(opath):
         os.makedirs(opath)
-    embeddings = args.timbrenet(ifiles)
+    print('Processing {} files...'.format(len(ifiles)))
+    loader = AudioLoader(args.sample_rate, args.sample_length, args.batch_size, args.processes)
+    embeddings = args.timbrenet(ifiles, loader)
     # relative/absolute path
     if relative:
         ifiles = [os.path.relpath(f, opath) for f in ifiles]
@@ -230,12 +235,16 @@ def add_arguments(argp):
     argp.add_argument('--model-dir', default='model',
         help='directory to load the model files')
     argp.add_argument('--device', default='/gpu:0')
+    argp.add_argument('--sample-rate', type=int, default=16000)
+    argp.add_argument('--sample-length', type=float, default=8.0)
+    argp.add_argument('--batch-size', type=int, default=4)
+    argp.add_argument('--processes', type=int, default=4)
     bool_argument(argp, 'cluster', True,
         help='whether to cluster the embeddings')
     argp.add_argument('--cluster-min', type=int, default=8,
-        help='min number of clusters for clustering')
+        help='minimum number of clusters for clustering')
     argp.add_argument('--cluster-max', type=int, default=40,
-        help='max number of clusters for clustering')
+        help='maximum number of clusters for clustering')
 
 def main(argv):
     import argparse
