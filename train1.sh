@@ -1,7 +1,8 @@
-python train.py "$HOME/Datasets/Speech/Corpus" --out-channels 552 --processes 2 --max-steps 2047000 --random-seed 0 --device /gpu:0 --postfix 201 --embed-size 512 --batch-size 8 --group-size 2
+python data_pack.py $HOME/Datasets/Speech/Corpus $HOME/Datasets/Speech/Corpus-others/npz --num-epochs 16
+python train.py "$HOME/Datasets/Speech/Corpus-others/npz" --packed --out-channels 1022 --processes 2 --max-steps 511000 --random-seed 0 --device /gpu:0 --postfix 201 --embed-size 512
 
 exit
-
+ --out-channels 552
 python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_wav" --processes 4 --threads 2 --max-steps 63000 --random-seed 0 --triplet-margin 2.0 --device /gpu:0 --postfix 105
 python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_wav" --processes 3 --threads 2 --max-steps 63000 --random-seed 0 --triplet-margin 2.0 --device /gpu:0 --postfix 106 --out-channels 64
 python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_wav" --processes 4 --threads 2 --max-steps 127000 --random-seed 0 --triplet-margin 2.0 --device /gpu:0 --postfix 108 --out-channels 64 --pretrain-dir train106.tmp

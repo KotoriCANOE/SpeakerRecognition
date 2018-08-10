@@ -155,7 +155,7 @@ class DataBase:
         slice_duration = np.abs(config.pp_duration)
         # read from file
         data, rate = librosa.load(file, sr=sample_rate if sample_rate > 0 else None, mono=True,
-            offset=0.0, duration=slice_duration if config.pp_duration < 0 else None)
+            offset=0.0, duration=slice_duration / 1000 if config.pp_duration < 0 else None)
         audio_max = np.max(data)
         samples = data.shape[-1]
         slice_samples = slice_duration * rate // 1000
@@ -360,7 +360,7 @@ class DataSpeech(DataBase):
                 args.__setattr__(name, value)
         def argchoose(name, cond, tv, fv):
             argdefault(name, tv if cond else fv)
-        argchoose('batch_size', args.test, 20, 40)
+        argchoose('batch_size', args.test, 16, 32)
         argchoose('pp_duration', args.test, -4000, -2000)
         argchoose('pp_smooth', args.test, 0, 0)
         argchoose('pp_noise', args.test, 0, 0.7)
@@ -383,6 +383,7 @@ class DataSpeech(DataBase):
         regex = re.compile(r'^(.*[/\\])?(.+?)[-_](.+?)(\..+?)$')
         matches = [re.findall(regex, f)[0][1:3] for f in files]
         person_ids, speech_ids = [self.ordered_ids(list(i)) for i in zip(*matches)]
+        self.num_ids = max(speech_ids) + 1
         # data list
         data_list = [(speech_ids[i], files[i]) for i in range(len(files))]
         self.group_shuffle(data_list, self.batch_size, self.shuffle, self.group_size)

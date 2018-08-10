@@ -1,4 +1,4 @@
-python data_pack.py $HOME/Datasets/Speech/Corpus $HOME/Datasets/Speech/Corpus-others/npz --num-epochs 4 --batch-size 8 --group-size 2
+python data_pack.py $HOME/Datasets/Speech/Corpus $HOME/Datasets/Speech/Corpus-others/npz --num-epochs 16
 
 exit
 
