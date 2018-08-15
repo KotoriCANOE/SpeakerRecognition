@@ -15,3 +15,12 @@ FOR %%i IN (148) DO (
 	python graph.py --out-channels 5994 --postfix %%i --embed-size 64
 	python freeze_graph.py --input_graph model%%i.tmp\model.graphdef --input_checkpoint model%%i.tmp\model --output_graph model%%i.tmp\model.pb --output_node_names Embedding
 )
+
+FOR %%i IN (149) DO (
+	python graph.py --out-channels 5994 --postfix %%i --embed-size 512
+	python freeze_graph.py --input_graph model%%i.tmp\model.graphdef --input_checkpoint model%%i.tmp\model --output_graph model%%i.tmp\model.pb --output_node_names Embedding
+)
+FOR %%i IN (201) DO (
+	python graph.py --out-channels 1022 --postfix %%i --embed-size 512
+	python freeze_graph.py --input_graph model%%i.tmp\model.graphdef --input_checkpoint model%%i.tmp\model --output_graph model%%i.tmp\model.pb --output_node_names Embedding
+)

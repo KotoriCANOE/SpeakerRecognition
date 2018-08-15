@@ -85,12 +85,12 @@ def reset_random(seed=0):
     np.random.seed(seed)
 
 # setup tensorflow and return session
-def create_session():
+def create_session(graph=None):
     # create session
     gpu_options = tf.GPUOptions(allow_growth=True)
     config = tf.ConfigProto(gpu_options=gpu_options,
         allow_soft_placement=True, log_device_placement=False)
-    return tf.Session(config=config)
+    return tf.Session(graph=graph, config=config)
 
 # encode a batch of images to a list of pngs
 def BatchPNG(images, batch_size, dtype=tf.uint8):

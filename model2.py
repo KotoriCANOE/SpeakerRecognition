@@ -45,7 +45,7 @@ class SRN:
     @staticmethod
     def add_arguments(argp):
         # model parameters
-        argp.add_argument('--embed-size', type=int, default=64)
+        argp.add_argument('--embed-size', type=int, default=512)
         argp.add_argument('--batch-norm', type=float, default=0.999)
         # training parameters
         argp.add_argument('--dropout', type=float, default=0)
@@ -180,6 +180,15 @@ class SRN:
                     kernel1, stride1, format, activation,
                     normalizer, regularizer, var_key)
             with tf.variable_scope('GlobalAveragePooling'):
+                last_channels = last.shape.as_list()[-3]
+                if self.embed_size > last_channels:
+                    initializer = tf.initializers.variance_scaling(
+                        1.0, 'fan_in', 'normal', self.random_seed, self.dtype)
+                    last = slim.conv2d(last, self.embed_size,
+                        [1, 1], [1, 1], 'SAME', format,
+                        1, activation, None, weights_initializer=initializer,
+                        weights_regularizer=regularizer, variables_collections=var_key)
+                    last_channels = self.embed_size
                 last = tf.reduce_mean(last, [-2, -1] if format == 'NCHW' else [-3, -2])
             with tf.variable_scope('FCBlock'):
                 skip = last

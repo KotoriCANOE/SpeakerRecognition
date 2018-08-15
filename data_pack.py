@@ -1,7 +1,7 @@
 import numpy as np
 import os
 from utils import eprint, reset_random
-from data import DataSpeech as Data
+from data import DataVoxCeleb as Data
 
 class DataPack:
     def __init__(self, config):
