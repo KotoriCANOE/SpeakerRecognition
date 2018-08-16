@@ -182,11 +182,12 @@ class SRN:
             with tf.variable_scope('GlobalAveragePooling'):
                 last_channels = last.shape.as_list()[-3]
                 if self.embed_size > last_channels:
+                    last = activation(last)
                     initializer = tf.initializers.variance_scaling(
                         1.0, 'fan_in', 'normal', self.random_seed, self.dtype)
                     last = slim.conv2d(last, self.embed_size,
                         [1, 1], [1, 1], 'SAME', format,
-                        1, activation, None, weights_initializer=initializer,
+                        1, None, None, weights_initializer=initializer,
                         weights_regularizer=regularizer, variables_collections=var_key)
                     last_channels = self.embed_size
                 last = tf.reduce_mean(last, [-2, -1] if format == 'NCHW' else [-3, -2])
