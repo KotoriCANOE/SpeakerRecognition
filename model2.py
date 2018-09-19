@@ -26,8 +26,6 @@ class SRN:
         self.generator_wd = None
         self.generator_lr = None
         self.generator_lr_step = None
-        self.generator_vkey = 'generator_var'
-        self.generator_lkey = 'generator_loss'
         # collections
         self.train_sums = []
         self.loss_sums = []
@@ -86,13 +84,13 @@ class SRN:
             weights_regularizer=regularizer, variables_collections=collections)
         return last
 
-    def EBlock(self, last, channels, resblocks=1, bottleneck=True,
-        kernel=[1, 3], stride=[1, 2], format=DATA_FORMAT,
+    def EBlock(self, last, channels, resblocks=1, bottleneck=False,
+        kernel=[1, 4], stride=[1, 2], format=DATA_FORMAT,
         activation=ACTIVATION, normalizer=None, regularizer=None, collections=None):
         initializer = tf.initializers.variance_scaling(
             1.0, 'fan_in', 'normal', self.random_seed, self.dtype)
         skip = last
-        in_channels = skip.get_shape()[-3 if format == 'NCHW' else -1]
+        in_channels = last.get_shape()[-3 if format == 'NCHW' else -1]
         if activation: last = activation(last)
         if bottleneck and in_channels > channels:
             last = slim.conv2d(last, channels,
@@ -119,8 +117,7 @@ class SRN:
         # parameters
         main_scope = 'generator'
         format = self.data_format
-        var_key = self.generator_vkey
-        kernel1 = [1, 3]
+        kernel1 = [1, 4]
         stride1 = [1, 2]
         # model definition
         with tf.variable_scope(main_scope):
@@ -130,55 +127,55 @@ class SRN:
             # function objects
             activation = self.generator_acti
             if self.batch_norm > 0:
-                normalizer = lambda x: slim.batch_norm(x, self.batch_norm, center=True, scale=False,
+                normalizer = lambda x: slim.batch_norm(x, self.batch_norm, center=True, scale=True,
                     is_training=self.g_training, data_format=format, renorm=False)
             else:
                 normalizer = None
-            regularizer = slim.l2_regularizer(self.generator_wd)
+            regularizer = slim.l2_regularizer(self.generator_wd) if self.generator_wd else None
             # network
             with tf.variable_scope('InBlock'):
-                last = self.InBlock(last, 32, [1, 7], [1, 1], format, activation,
-                    normalizer, regularizer, var_key)
+                last = self.InBlock(last, 32, [1, 8], [1, 1], format, activation,
+                    normalizer, regularizer)
             with tf.variable_scope('EBlock_1'):
                 last = self.EBlock(last, 32, 0, False,
                     kernel1, stride1, format, activation,
-                    normalizer, regularizer, var_key)
+                    normalizer, regularizer)
             with tf.variable_scope('EBlock_2'):
                 last = self.EBlock(last, 32, 1, False,
                     kernel1, stride1, format, activation,
-                    normalizer, regularizer, var_key)
+                    normalizer, regularizer)
             with tf.variable_scope('EBlock_3'):
                 last = self.EBlock(last, 40, 1, False,
                     kernel1, stride1, format, activation,
-                    normalizer, regularizer, var_key)
+                    normalizer, regularizer)
             with tf.variable_scope('EBlock_4'):
                 last = self.EBlock(last, 40, 2, False,
                     kernel1, stride1, format, activation,
-                    normalizer, regularizer, var_key)
+                    normalizer, regularizer)
             with tf.variable_scope('EBlock_5'):
                 last = self.EBlock(last, 48, 2, False,
                     kernel1, stride1, format, activation,
-                    normalizer, regularizer, var_key)
+                    normalizer, regularizer)
             with tf.variable_scope('EBlock_6'):
                 last = self.EBlock(last, 48, 2, False,
                     kernel1, stride1, format, activation,
-                    normalizer, regularizer, var_key)
+                    normalizer, regularizer)
             with tf.variable_scope('EBlock_7'):
                 last = self.EBlock(last, 56, 2, False,
                     kernel1, stride1, format, activation,
-                    normalizer, regularizer, var_key)
+                    normalizer, regularizer)
             with tf.variable_scope('EBlock_8'):
                 last = self.EBlock(last, 56, 3, False,
                     kernel1, stride1, format, activation,
-                    normalizer, regularizer, var_key)
+                    normalizer, regularizer)
             with tf.variable_scope('EBlock_9'):
                 last = self.EBlock(last, 64, 3, False,
                     kernel1, stride1, format, activation,
-                    normalizer, regularizer, var_key)
+                    normalizer, regularizer)
             with tf.variable_scope('EBlock_10'):
                 last = self.EBlock(last, 64, 3, False,
                     kernel1, stride1, format, activation,
-                    normalizer, regularizer, var_key)
+                    normalizer, regularizer)
             with tf.variable_scope('GlobalAveragePooling'):
                 last_channels = last.shape.as_list()[-3]
                 if self.embed_size > last_channels:
@@ -188,16 +185,16 @@ class SRN:
                     last = slim.conv2d(last, self.embed_size,
                         [1, 1], [1, 1], 'SAME', format,
                         1, None, None, weights_initializer=initializer,
-                        weights_regularizer=regularizer, variables_collections=var_key)
+                        weights_regularizer=regularizer)
                     last_channels = self.embed_size
                 last = tf.reduce_mean(last, [-2, -1] if format == 'NCHW' else [-3, -2])
             with tf.variable_scope('FCBlock'):
                 skip = last
                 last_channels = last.shape.as_list()[-1]
                 last = slim.fully_connected(last, last_channels, activation, None,
-                    weights_regularizer=regularizer, variables_collections=var_key)
+                    weights_regularizer=regularizer)
                 last = slim.fully_connected(last, self.embed_size, None, None,
-                    weights_regularizer=regularizer, variables_collections=var_key)
+                    weights_regularizer=regularizer)
                 if self.embed_size == last_channels:
                     last += skip
                 self.embeddings = last
@@ -205,7 +202,7 @@ class SRN:
                 if self.dropout > 0:
                     last = tf.layers.dropout(last, self.dropout, training=self.g_training)
                 last = slim.fully_connected(last, self.out_channels, None, None,
-                    weights_regularizer=regularizer, variables_collections=var_key)
+                    weights_regularizer=regularizer)
         # trainable/model/save/restore variables
         self.g_tvars = tf.trainable_variables(main_scope)
         self.g_mvars = tf.model_variables(main_scope)
@@ -214,7 +211,7 @@ class SRN:
         self.g_rvars = self.g_svars.copy()
         # restore moving average of trainable variables
         if self.var_ema > 0:
-            with tf.variable_scope('variables_ema'):
+            with tf.variable_scope('EMA'):
                 self.g_rvars = {**{self.ema.average_name(var): var for var in self.g_tvars},
                     **{var.op.name: var for var in self.g_mvars}}
         return last
@@ -222,7 +219,7 @@ class SRN:
     def build_g_loss(self, labels, outputs, embeddings):
         self.g_log_losses = []
         update_ops = []
-        loss_key = self.generator_lkey
+        loss_key = 'generator_loss'
         with tf.variable_scope(loss_key):
             # softmax cross entropy
             onehot_labels = tf.one_hot(labels, self.out_channels)
@@ -294,8 +291,6 @@ class SRN:
         self.build_model(inputs)
         # build generator loss
         self.build_g_loss(self.labels, self.outputs, self.embeddings)
-        # return total loss
-        return self.g_loss
 
     def train(self, global_step):
         # saving memory with gradient checkpoints
@@ -320,7 +315,7 @@ class SRN:
             self.train_sums.append(tf.summary.histogram(var.op.name, var))
         # save moving average of trainalbe variables
         if self.var_ema > 0:
-            with tf.variable_scope('variables_ema'):
+            with tf.variable_scope('EMA'):
                 with tf.control_dependencies(update_ops):
                     update_ops = [self.ema.apply(self.g_tvars)]
                 self.g_svars = [self.ema.average(var) for var in self.g_tvars] + self.g_mvars

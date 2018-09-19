@@ -50,7 +50,7 @@ class DataBase:
         argp.add_argument('--group-size', type=int, default=4)
         # sample parameters
         argp.add_argument('--pp-rate', type=int, default=16000)
-        argp.add_argument('--pp-duration', type=int,
+        argp.add_argument('--pp-duration', type=float,
             help='0: no slicing, -: fixed slicing, +: random slicing')
         argp.add_argument('--pp-smooth', type=float)
         argp.add_argument('--pp-noise', type=float)
@@ -64,7 +64,7 @@ class DataBase:
         def argchoose(name, cond, tv, fv):
             argdefault(name, tv if cond else fv)
         argchoose('batch_size', args.test, 36, 72)
-        argchoose('pp_duration', args.test, 2000, 1000)
+        argchoose('pp_duration', args.test, 2.0, 1.0)
         argchoose('pp_smooth', args.test, 0, 0)
         argchoose('pp_noise', args.test, 0, 0.7)
         argchoose('pp_amplitude', args.test, 0, 0)
@@ -151,25 +151,27 @@ class DataBase:
     @staticmethod
     def process_sample(id_, file, config):
         # parameters
-        sample_rate = config.pp_rate
+        sample_rate = config.pp_rate if config.pp_rate > 0 else None
         slice_duration = np.abs(config.pp_duration)
+        # slice
+        duration = librosa.get_duration(filename=file)
+        if config.pp_duration > 0 and duration > slice_duration:
+            # randomly cropping
+            offset = random.uniform(0, duration - slice_duration)
+        else:
+            offset = 0.0
         # read from file
-        data, rate = librosa.load(file, sr=sample_rate if sample_rate > 0 else None, mono=True,
-            offset=0.0, duration=slice_duration / 1000 if config.pp_duration < 0 else None)
+        data, rate = librosa.load(file, sr=sample_rate, mono=True,
+            offset=offset, duration=slice_duration)
         audio_max = np.max(data)
         samples = data.shape[-1]
-        slice_samples = slice_duration * rate // 1000
-        # slice
-        if config.pp_duration > 0 and samples > slice_samples:
-            # randomly cropping
-            start = random.randint(0, samples - slice_samples)
-            data = data[start : start + slice_samples]
-        # padding
-        if samples < slice_samples:
-            data = np.pad(data, (0, slice_samples - samples), 'constant')
+        slice_samples = int(slice_duration * rate + 0.5)
         # normalization
         norm_factor = 1 / audio_max
         data = data.astype(np.float32) * norm_factor
+        # zero padding
+        if samples < slice_samples:
+            data = np.pad(data, (0, slice_samples - samples), 'zero')
         # random data manipulation
         data = DataPP.process(data, config)
         # label
@@ -361,7 +363,7 @@ class DataSpeech(DataBase):
         def argchoose(name, cond, tv, fv):
             argdefault(name, tv if cond else fv)
         argchoose('batch_size', args.test, 16, 32)
-        argchoose('pp_duration', args.test, -4000, -2000)
+        argchoose('pp_duration', args.test, -4.0, -2.0)
         argchoose('pp_smooth', args.test, 0, 0)
         argchoose('pp_noise', args.test, 0, 0.7)
         argchoose('pp_amplitude', args.test, 0, 0)

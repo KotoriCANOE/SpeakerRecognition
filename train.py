@@ -61,7 +61,7 @@ class Train:
     def build_graph(self):
         with tf.device(self.device):
             self.model = SRN(self.config)
-            self.g_loss = self.model.build_train()
+            self.model.build_train()
             self.global_step = tf.train.get_or_create_global_step()
             self.g_train_op = self.model.train(self.global_step)
             self.train_summary, self.loss_summary = self.model.get_summaries()
@@ -82,7 +82,7 @@ class Train:
         self.saver.export_meta_graph(os.path.join(self.train_dir, 'model.meta'),
             as_text=False, clear_devices=True, clear_extraneous_savers=True)
 
-    def train_session(self):
+    def create_session(self):
         self.train_writer = tf.summary.FileWriter(self.train_dir + '/train',
             tf.get_default_graph(), max_queue=20, flush_secs=120)
         self.val_writer = tf.summary.FileWriter(self.train_dir + '/val')
@@ -99,18 +99,18 @@ class Train:
         inputs, labels = next(data_gen)
         feed_dict = {self.model.g_training: True,
             'Input:0': inputs, 'Label:0': labels}
-        fetch = [self.g_train_op, self.model.g_losses_acc]
+        fetches = [self.g_train_op, self.model.g_losses_acc]
         if logging:
-            fetch += [self.train_summary]
-            _, _, summary = sess.run(fetch, feed_dict, options, run_metadata)
+            fetches += [self.train_summary]
+            _, _, summary = sess.run(fetches, feed_dict, options, run_metadata)
             self.train_writer.add_summary(summary, global_step)
         else:
-            sess.run(fetch, feed_dict, options, run_metadata)
+            sess.run(fetches, feed_dict, options, run_metadata)
         # training - log summary
         if logging:
             # loss summary
-            fetch = [self.loss_summary] + self.model.g_log_losses
-            train_ret = sess.run(fetch)
+            fetches = [self.loss_summary] + self.model.g_log_losses
+            train_ret = sess.run(fetches)
             self.train_writer.add_summary(train_ret[0], global_step)
             # logging
             time_current = time.time()
@@ -128,11 +128,11 @@ class Train:
         if logging:
             for inputs, labels in zip(self.val_inputs, self.val_labels):
                 feed_dict = {'Input:0': inputs, 'Label:0': labels}
-                fetch = [self.model.g_losses_acc]
-                sess.run(fetch, feed_dict)
+                fetches = [self.model.g_losses_acc]
+                sess.run(fetches, feed_dict)
             # loss summary
-            fetch = [self.loss_summary] + self.model.g_log_losses
-            val_ret = sess.run(fetch)
+            fetches = [self.loss_summary] + self.model.g_log_losses
+            val_ret = sess.run(fetches)
             self.val_writer.add_summary(val_ret[0], global_step)
             # logging
             val_log = ('{} (val) epoch {}, step {}: cross: {:.5}, accuracy: {:.5}'
@@ -234,7 +234,7 @@ class Train:
         with tf.Graph().as_default():
             self.build_graph()
             self.build_saver()
-            with self.train_session() as sess:
+            with self.create_session() as sess:
                 self.run(sess)
 
 def main(argv=None):

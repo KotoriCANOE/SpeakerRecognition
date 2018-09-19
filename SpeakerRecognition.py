@@ -196,6 +196,9 @@ def process_cluster(args, ifiles, opath, relative=True):
             df = {'file': ifiles, 'label': labels}
             df = pd.DataFrame(df)
             df.to_csv(fd)
+        # save embeddings
+        with open(os.path.join(opath, 'embeddings.npz'), 'wb') as fd:
+            np.savez_compressed(fd, files=ifiles, embeddings=embeddings, labels=labels)
 
 def process(args):
     # find all the audio files in the given path
@@ -203,6 +206,11 @@ def process(args):
     file_dict = {}
     for dirpath, dirnames, filenames in os.walk(args.input):
         filenames = [f for f in filenames if os.path.splitext(f)[1] in postfix]
+        # filter length
+        if args.length_min > 0.0 or args.length_max < float('inf'):
+            filenames = [f for f in filenames if args.length_min <=
+                librosa.get_duration(filename=os.path.join(dirpath, f)) <= args.length_max]
+        # insert directory into dict
         if len(filenames) > 0:
             file_dict[dirpath] = filenames
         if not args.recursive:
@@ -232,6 +240,8 @@ def add_arguments(argp):
         help='optional output directory instead of saving results to each sub-directory')
     bool_argument(argp, 'relative', True,
         help='save relative/absolute path')
+    argp.add_argument('--length-min', type=float, default=0.0)
+    argp.add_argument('--length-max', type=float, default=float('inf'))
     argp.add_argument('--model-dir', default='model',
         help='directory to load the model files')
     argp.add_argument('--device', default='/gpu:0')
