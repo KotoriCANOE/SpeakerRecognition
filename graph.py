@@ -1,7 +1,7 @@
 import tensorflow as tf
 import os
 from utils import eprint, create_session
-from model2 import SRN
+from model import SRN
 
 class Graph:
     def __init__(self, config):
