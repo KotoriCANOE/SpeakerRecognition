@@ -49,7 +49,7 @@ class Model:
             self.inputs.set_shape(self.input_shape)
         # forward pass
         self.discriminator = Discriminator('Discriminator', self.config)
-        self.outputs = self.discriminator(self.inputs, reuse=None)
+        self.embeddings, self.outputs = self.discriminator(self.inputs, reuse=None)
         # embeddings
         self.embeddings = tf.identity(self.embeddings, name='Embedding')
         # outputs
@@ -107,7 +107,7 @@ class Model:
             losses = tf.losses.get_losses(loss_key)
             main_loss = tf.add_n(losses, 'main_loss')
             # regularization loss
-            reg_losses = tf.losses.get_regularization_losses('discriminator')
+            reg_losses = tf.losses.get_regularization_losses('Discriminator')
             reg_loss = tf.add_n(reg_losses)
             update_ops.append(self.loss_summary('reg_loss', reg_loss))
             # final loss

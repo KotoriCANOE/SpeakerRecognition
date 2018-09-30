@@ -119,7 +119,7 @@ class Discriminator(DiscriminatorConfig):
                 collections=[tf.GraphKeys.GLOBAL_VARIABLES, tf.GraphKeys.MODEL_VARIABLES])
             # encoder
             with tf.variable_scope('InBlock'):
-                last = self.InBlock(last, 32, [1, 8], [1, 2],
+                last = self.InBlock(last, 32, [1, 8], [1, 1],
                     format, None, None, regularizer)
             with tf.variable_scope('EBlock_1'):
                 last = self.EBlock(last, 32, 0, kernel1, stride1,
@@ -162,7 +162,7 @@ class Discriminator(DiscriminatorConfig):
                     weights_regularizer=regularizer)
                 if self.embed_size == last_channels:
                     last += skip
-                self.embeddings = last
+                embeddings = last
             with tf.variable_scope('OutBlock'):
                 if self.dropout > 0:
                     last = tf.layers.dropout(last, self.dropout, training=self.training)
@@ -179,7 +179,7 @@ class Discriminator(DiscriminatorConfig):
             with tf.variable_scope('EMA'):
                 self.rvars = {**{self.ema.average_name(var): var for var in self.tvars},
                     **{var.op.name: var for var in self.mvars}}
-        return last
+        return embeddings, last
 
     def apply_ema(self, update_ops=[]):
         if not self.var_ema:
