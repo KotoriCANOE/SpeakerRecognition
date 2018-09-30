@@ -302,22 +302,25 @@ class Discriminator2(DiscriminatorConfig):
                 last = self.InBlock(last, 32, [1, 7], [1, 1],
                     format, None, None, regularizer)
             with tf.variable_scope('EBlock_1'):
-                last = self.EBlock(last, 4, 16, None, False, kernel1, stride1,
+                last = self.EBlock(last, 2, 16, None, False, kernel1, stride1,
                     format, activation, normalizer, regularizer)
             with tf.variable_scope('EBlock_2'):
-                last = self.EBlock(last, 6, 16, None, False, kernel1, stride1,
+                last = self.EBlock(last, 2, 16, None, False, kernel1, stride1,
                     format, activation, normalizer, regularizer)
             with tf.variable_scope('EBlock_3'):
-                last = self.EBlock(last, 8, 16, None, False, kernel1, stride1,
+                last = self.EBlock(last, 4, 16, None, False, kernel1, stride1,
                     format, activation, normalizer, regularizer)
             with tf.variable_scope('EBlock_4'):
-                last = self.EBlock(last, 12, 16, None, False, kernel1, stride1,
+                last = self.EBlock(last, 4, 16, None, False, kernel1, stride1,
                     format, activation, normalizer, regularizer)
             with tf.variable_scope('EBlock_5'):
-                last = self.EBlock(last, 16, 16, None, False, kernel1, stride1,
+                last = self.EBlock(last, 6, 16, None, False, kernel1, stride1,
                     format, activation, normalizer, regularizer)
             with tf.variable_scope('EBlock_6'):
-                last = self.EBlock(last, 16, 16, None, False, kernel1, stride1,
+                last = self.EBlock(last, 6, 16, None, False, kernel1, stride1,
+                    format, activation, normalizer, regularizer)
+            with tf.variable_scope('EBlock_7'):
+                last = self.EBlock(last, 8, 16, None, False, kernel1, stride1,
                     format, activation, normalizer, regularizer)
             with tf.variable_scope('GlobalAveragePooling'):
                 last = tf.reduce_mean(last, [-2, -1] if format == 'NCHW' else [-3, -2])
