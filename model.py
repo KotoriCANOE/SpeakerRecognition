@@ -1,5 +1,5 @@
 import tensorflow as tf
-from network import Discriminator
+from network import Discriminator2 as Discriminator
 
 DATA_FORMAT = 'NCHW'
 
