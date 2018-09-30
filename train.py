@@ -1,13 +1,14 @@
 import tensorflow as tf
 import numpy as np
 import os
-from utils import eprint, reset_random, create_session
+from utils import bool_argument, eprint, reset_random, create_session
 from data import DataVoxCeleb as Data
-from model import SRN
+from model import Model
 
 # class for training session
 class Train:
     def __init__(self, config):
+        self.debug = None
         self.random_seed = None
         self.device = None
         self.postfix = None
@@ -19,7 +20,9 @@ class Train:
         self.log_frequency = None
         self.log_file = None
         self.batch_size = None
-        self.val_size = None
+        # dataset
+        self.num_epochs = None
+        self.max_steps = None
         # copy all the properties from config object
         self.config = config
         self.__dict__.update(config.__dict__)
@@ -46,9 +49,9 @@ class Train:
 
     def get_dataset(self):
         self.data = Data(self.config)
-        if self.data.num_ids is not None:
-            self.config.out_channels = self.data.num_ids
-            eprint('--out-channels is set to {}'.format(self.config.out_channels))
+        if self.data.num_labels is not None:
+            self.config.num_labels = self.data.num_labels
+            eprint('--num-labels is set to {}'.format(self.config.num_labels))
         self.epoch_steps = self.data.epoch_steps
         self.max_steps = self.data.max_steps
         # pre-computing validation set
@@ -60,11 +63,11 @@ class Train:
 
     def build_graph(self):
         with tf.device(self.device):
-            self.model = SRN(self.config)
+            self.model = Model(self.config)
             self.model.build_train()
             self.global_step = tf.train.get_or_create_global_step()
-            self.g_train_op = self.model.train(self.global_step)
-            self.train_summary, self.loss_summary = self.model.get_summaries()
+            self.d_train_op = self.model.train_d(self.global_step)
+            self.d_train_summary, self.loss_summary = self.model.get_summaries()
 
     def build_saver(self):
         # a Saver object to restore the variables with mappings
@@ -86,7 +89,7 @@ class Train:
         self.train_writer = tf.summary.FileWriter(self.train_dir + '/train',
             tf.get_default_graph(), max_queue=20, flush_secs=120)
         self.val_writer = tf.summary.FileWriter(self.train_dir + '/val')
-        return create_session()
+        return create_session(debug=self.debug)
 
     def run_sess(self, sess, global_step, data_gen, options=None, run_metadata=None):
         from datetime import datetime
@@ -96,12 +99,12 @@ class Train:
         logging = last_step or (self.log_frequency > 0 and
             global_step % self.log_frequency == 0)
         # training - train op
-        inputs, labels = next(data_gen)
-        feed_dict = {self.model.g_training: True,
-            'Input:0': inputs, 'Label:0': labels}
-        fetches = [self.g_train_op, self.model.g_losses_acc]
+        _inputs, _labels = next(data_gen)
+        feed_dict = {self.model.discriminator.training: True,
+            'Input:0': _inputs, 'Label:0': _labels}
+        fetches = [self.d_train_op, self.model.d_losses_acc]
         if logging:
-            fetches += [self.train_summary]
+            fetches += [self.d_train_summary]
             _, _, summary = sess.run(fetches, feed_dict, options, run_metadata)
             self.train_writer.add_summary(summary, global_step)
         else:
@@ -109,7 +112,7 @@ class Train:
         # training - log summary
         if logging:
             # loss summary
-            fetches = [self.loss_summary] + self.model.g_log_losses
+            fetches = [self.loss_summary] + self.model.d_log_losses
             train_ret = sess.run(fetches)
             self.train_writer.add_summary(train_ret[0], global_step)
             # logging
@@ -126,12 +129,12 @@ class Train:
             eprint(train_log)
         # validation
         if logging:
-            for inputs, labels in zip(self.val_inputs, self.val_labels):
-                feed_dict = {'Input:0': inputs, 'Label:0': labels}
-                fetches = [self.model.g_losses_acc]
+            for _inputs, _labels in zip(self.val_inputs, self.val_labels):
+                feed_dict = {'Input:0': _inputs, 'Label:0': _labels}
+                fetches = [self.model.d_losses_acc]
                 sess.run(fetches, feed_dict)
             # loss summary
-            fetches = [self.loss_summary] + self.model.g_log_losses
+            fetches = [self.loss_summary] + self.model.d_log_losses
             val_ret = sess.run(fetches)
             self.val_writer.add_summary(val_ret[0], global_step)
             # logging
@@ -243,6 +246,7 @@ def main(argv=None):
     argp = argparse.ArgumentParser()
     # training parameters
     argp.add_argument('dataset')
+    bool_argument(argp, 'debug', False)
     argp.add_argument('--num-epochs', type=int, default=24)
     argp.add_argument('--max-steps', type=int)
     argp.add_argument('--random-seed', type=int)
@@ -261,11 +265,11 @@ def main(argv=None):
     argp.add_argument('--dtype', type=int, default=2)
     argp.add_argument('--data-format', default='NCHW')
     argp.add_argument('--in-channels', type=int, default=1)
-    argp.add_argument('--out-channels', type=int)
+    argp.add_argument('--num-labels', type=int)
     # pre-processing parameters
     Data.add_arguments(argp, False)
     # model parameters
-    SRN.add_arguments(argp)
+    Model.add_arguments(argp)
     # parse
     args = argp.parse_args(argv)
     Data.parse_arguments(args)

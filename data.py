@@ -4,7 +4,7 @@ import librosa
 from scipy import ndimage
 import os
 import random
-from utils import eprint, listdir_files
+from utils import bool_argument, eprint, listdir_files
 
 # ======
 # base class
@@ -25,27 +25,23 @@ class DataBase:
         self.buffer_size = None
         self.shuffle = None
         self.group_size = None
+        self.num_labels = None
         # copy all the properties from config object
         self.config = config
         self.__dict__.update(config.__dict__)
         # initialize
-        self.num_ids = None
         self.get_files()
 
     @staticmethod
     def add_arguments(argp, test=False):
-        def bool_argument(argp, name, default):
-            argp.add_argument('--' + name, dest=name, action='store_true')
-            argp.add_argument('--no-' + name, dest=name, action='store_false')
-            eval('argp.set_defaults({}={})'.format(name, 'True' if default else 'False'))
         # base parameters
         bool_argument(argp, 'packed', False)
         bool_argument(argp, 'test', test)
         # pre-processing parameters
         argp.add_argument('--processes', type=int, default=2)
-        argp.add_argument('--threads', type=int, default=4)
-        argp.add_argument('--prefetch', type=int, default=256)
-        argp.add_argument('--buffer-size', type=int, default=1024)
+        argp.add_argument('--threads', type=int, default=2)
+        argp.add_argument('--prefetch', type=int, default=64)
+        argp.add_argument('--buffer-size', type=int, default=256)
         bool_argument(argp, 'shuffle', True)
         argp.add_argument('--group-size', type=int, default=4)
         # sample parameters
@@ -149,7 +145,7 @@ class DataBase:
             .format(self.epoch_size, self.epoch_steps, self.num_epochs, self.max_steps))
 
     @staticmethod
-    def process_sample(id_, file, config):
+    def process_sample(file, label, config):
         # parameters
         sample_rate = config.pp_rate if config.pp_rate > 0 else None
         slice_duration = np.abs(config.pp_duration)
@@ -163,19 +159,19 @@ class DataBase:
         # read from file
         data, rate = librosa.load(file, sr=sample_rate, mono=True,
             offset=offset, duration=slice_duration)
+        if len(data.shape) < 2:
+            data = np.expand_dims(data, 0)
         audio_max = np.max(data)
         samples = data.shape[-1]
         slice_samples = int(slice_duration * rate + 0.5)
         # normalization
         norm_factor = 1 / audio_max
-        data = data.astype(np.float32) * norm_factor
+        data *= norm_factor
         # zero padding
         if samples < slice_samples:
-            data = np.pad(data, (0, slice_samples - samples), 'zero')
+            data = np.pad(data, ((0, 0), (0, slice_samples - samples)), 'constant')
         # random data manipulation
         data = DataPP.process(data, config)
-        # label
-        label = np.array(id_, dtype=np.int64)
         # return
         return data, label
 
@@ -187,29 +183,29 @@ class DataBase:
         labels = []
         # load all the data
         if config.threads == 1:
-            for id_, file in batch_set:
-                _input, _label = cls.process_sample(id_, file, config)
+            for file, label in batch_set:
+                _input, _label = cls.process_sample(file, label, config)
                 inputs.append(_input)
                 labels.append(_label)
         else:
             with ThreadPoolExecutor(config.threads) as executor:
                 futures = []
-                for id_, file in batch_set:
-                    futures.append(executor.submit(cls.process_sample, id_, file, config))
+                for file, label in batch_set:
+                    futures.append(executor.submit(cls.process_sample, file, label, config))
                 # final data
-                for future in futures:
-                    _input, _label = future.result()
+                while len(futures) > 0:
+                    _input, _label = futures.pop(0).result()
                     inputs.append(_input)
                     labels.append(_label)
         # zero padding if not of the same length
         if config.pp_duration <= 0:
             max_samples = max([i.shape[-1] for i in inputs])
             inputs = [np.pad(i, (0, max_samples - i.shape[-1]), 'constant') for i in inputs]
-        # stack data to form a batch
+        # stack data to form a batch (NCW)
         inputs = np.stack(inputs)
-        labels = np.stack(labels)
-        # convert to CHW format
-        inputs = np.expand_dims(np.expand_dims(inputs, 1), 1)
+        labels = np.array(labels)
+        # convert to NCHW format
+        inputs = np.expand_dims(inputs, -2)
         # return
         return inputs, labels
 
@@ -238,8 +234,7 @@ class DataBase:
                         batch_set))
                     # yield the data beyond prefetch range
                     while len(futures) >= self.prefetch:
-                        future = futures.pop(0)
-                        yield future.result()
+                        yield futures.pop(0).result()
             # yield the remaining data
             for future in futures:
                 yield future.result()
@@ -269,8 +264,7 @@ class DataBase:
                         batch_set, self.config))
                     # yield the data beyond prefetch range
                     while len(futures) >= self.prefetch:
-                        future = futures.pop(0)
-                        yield future.result()
+                        yield futures.pop(0).result()
             # yield the remaining data
             for future in futures:
                 yield future.result()
@@ -341,15 +335,15 @@ class DataPP:
 class DataVoxCeleb(DataBase):
     def get_files_origin(self):
         dataset_ids = os.listdir(self.dataset)
-        num_ids = len(dataset_ids)
-        self.num_ids = num_ids
+        num_labels = len(dataset_ids)
+        self.num_labels = num_labels
         dataset_ids = [os.path.join(self.dataset, i) for i in dataset_ids]
         # data list
         data_list = []
-        for i in range(num_ids):
+        for i in range(num_labels):
             files = listdir_files(dataset_ids[i], filter_ext=['.wav', '.m4a', '.mp3'])
             for f in files:
-                data_list.append((i, f))
+                data_list.append((f, i))
         self.group_shuffle(data_list, self.batch_size, self.shuffle, self.group_size)
         # return
         return data_list
@@ -385,9 +379,9 @@ class DataSpeech(DataBase):
         regex = re.compile(r'^(.*[/\\])?(.+?)[-_](.+?)(\..+?)$')
         matches = [re.findall(regex, f)[0][1:3] for f in files]
         person_ids, speech_ids = [self.ordered_ids(list(i)) for i in zip(*matches)]
-        self.num_ids = max(speech_ids) + 1
+        self.num_labels = max(speech_ids) + 1
         # data list
-        data_list = [(speech_ids[i], files[i]) for i in range(len(files))]
+        data_list = [(files[i], speech_ids[i]) for i in range(len(files))]
         self.group_shuffle(data_list, self.batch_size, self.shuffle, self.group_size)
         # return
         return data_list

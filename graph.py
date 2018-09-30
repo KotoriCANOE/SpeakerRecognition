@@ -1,7 +1,7 @@
 import tensorflow as tf
 import os
 from utils import eprint, create_session
-from model import SRN
+from model import Model
 
 class Graph:
     def __init__(self, config):
@@ -31,7 +31,7 @@ class Graph:
         os.makedirs(self.model_dir)
 
     def build_graph(self):
-        self.model = SRN(self.config)
+        self.model = Model(self.config)
         self.model.build_model()
 
     def build_saver(self):
@@ -80,7 +80,7 @@ def main(argv=None):
     argp.add_argument('--in-channels', type=int, default=1)
     argp.add_argument('--out-channels', type=int)
     # model parameters
-    SRN.add_arguments(argp)
+    Model.add_arguments(argp)
     # parse
     args = argp.parse_args(argv)
     args.train_dir = args.train_dir.format(postfix=args.postfix)

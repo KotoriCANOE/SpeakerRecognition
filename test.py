@@ -3,25 +3,24 @@ import numpy as np
 import os
 from utils import eprint, reset_random, create_session
 from data import DataVoxCeleb as Data
-from model import SRN
+from model import Model
 
-class SRNTest(SRN):
+class ModelTest(Model):
     def test_loss(self, labels, outputs, embeddings):
         self.log_losses = []
         update_ops = []
         loss_key = 'test_loss'
         with tf.variable_scope(loss_key):
             # softmax cross entropy
-            onehot_labels = tf.one_hot(labels, self.out_channels)
+            onehot_labels = tf.one_hot(labels, self.num_labels)
             cross_loss = tf.losses.softmax_cross_entropy(onehot_labels, outputs, 1.0)
             update_ops.append(self.loss_summary('cross_loss', cross_loss, self.log_losses))
             # accuracy
             accuracy = tf.contrib.metrics.accuracy(labels, tf.argmax(outputs, -1))
             update_ops.append(self.loss_summary('accuracy', accuracy, self.log_losses))
             # triplet loss
-            from triplet_loss import batch_all, batch_hard
+            from triplet_loss import batch_all
             triplet_loss, fraction = batch_all(labels, embeddings, self.triplet_margin)
-            # triplet_loss, fraction = batch_hard(labels, embeddings, self.triplet_margin)
             tf.losses.add_loss(triplet_loss)
             update_ops.append(self.loss_summary('triplet_loss', triplet_loss, self.log_losses))
             update_ops.append(self.loss_summary('fraction_positive_triplets', fraction, self.log_losses))
@@ -90,7 +89,7 @@ class Test:
 
     def build_graph(self):
         with tf.device(self.device):
-            self.model = SRNTest(self.config)
+            self.model = ModelTest(self.config)
             self.model.build_test()
             _, self.loss_summary = self.model.get_summaries()
 
@@ -169,11 +168,11 @@ def main(argv=None):
     argp.add_argument('--dtype', type=int, default=2)
     argp.add_argument('--data-format', default='NCHW')
     argp.add_argument('--in-channels', type=int, default=1)
-    argp.add_argument('--out-channels', type=int)
+    argp.add_argument('--num-labels', type=int)
     # pre-processing parameters
     Data.add_arguments(argp, True)
     # model parameters
-    SRNTest.add_arguments(argp)
+    ModelTest.add_arguments(argp)
     # parse
     args = argp.parse_args(argv)
     Data.parse_arguments(args)
