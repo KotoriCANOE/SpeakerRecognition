@@ -1,7 +1,7 @@
 cd /d "%~dp0"
 
-FOR %%i IN (150) DO (
-	python graph.py --out-channels 5994 --postfix %%i --embed-size 4096 --model-file model_0250000
+FOR %%i IN (151) DO (
+	python graph.py --num-labels 5994 --postfix %%i --embed-size 512
 	python freeze_graph.py --input_graph model%%i.tmp\model.graphdef --input_checkpoint model%%i.tmp\model --output_graph model%%i.tmp\model.pb --output_node_names Embedding
 )
 
@@ -23,6 +23,10 @@ FOR %%i IN (148) DO (
 
 FOR %%i IN (149) DO (
 	python graph.py --out-channels 5994 --postfix %%i --embed-size 512
+	python freeze_graph.py --input_graph model%%i.tmp\model.graphdef --input_checkpoint model%%i.tmp\model --output_graph model%%i.tmp\model.pb --output_node_names Embedding
+)
+FOR %%i IN (150) DO (
+	python graph.py --out-channels 5994 --postfix %%i --embed-size 4096 --model-file model_0250000
 	python freeze_graph.py --input_graph model%%i.tmp\model.graphdef --input_checkpoint model%%i.tmp\model --output_graph model%%i.tmp\model.pb --output_node_names Embedding
 )
 FOR %%i IN (201) DO (

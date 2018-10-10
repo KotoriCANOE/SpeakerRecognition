@@ -23,7 +23,7 @@ class DataPack:
 
     def get_dataset(self):
         self.data = Data(self.config)
-        self.config.out_channels = self.data.num_ids
+        self.config.num_labels = self.data.num_labels
         self.epoch_steps = self.data.epoch_steps
         self.max_steps = self.data.max_steps
 

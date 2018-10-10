@@ -39,7 +39,7 @@ class DataBase:
         bool_argument(argp, 'test', test)
         # pre-processing parameters
         argp.add_argument('--processes', type=int, default=2)
-        argp.add_argument('--threads', type=int, default=2)
+        argp.add_argument('--threads', type=int, default=1)
         argp.add_argument('--prefetch', type=int, default=64)
         argp.add_argument('--buffer-size', type=int, default=256)
         bool_argument(argp, 'shuffle', True)
@@ -165,8 +165,9 @@ class DataBase:
         samples = data.shape[-1]
         slice_samples = int(slice_duration * rate + 0.5)
         # normalization
-        norm_factor = 1 / audio_max
-        data *= norm_factor
+        if audio_max > 1e-6:
+            norm_factor = 1 / audio_max
+            data *= norm_factor
         # zero padding
         if samples < slice_samples:
             data = np.pad(data, ((0, 0), (0, slice_samples - samples)), 'constant')
@@ -335,9 +336,10 @@ class DataPP:
 class DataVoxCeleb(DataBase):
     def get_files_origin(self):
         dataset_ids = os.listdir(self.dataset)
+        dataset_ids = [os.path.join(self.dataset, i) for i in dataset_ids]
+        dataset_ids = [i for i in dataset_ids if os.path.isdir(i)]
         num_labels = len(dataset_ids)
         self.num_labels = num_labels
-        dataset_ids = [os.path.join(self.dataset, i) for i in dataset_ids]
         # data list
         data_list = []
         for i in range(num_labels):

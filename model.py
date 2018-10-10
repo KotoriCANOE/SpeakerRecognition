@@ -30,6 +30,7 @@ class Model:
     @staticmethod
     def add_arguments(argp):
         # model parameters
+        argp.add_argument('--normalization', default='Batch')
         argp.add_argument('--embed-size', type=int, default=512)
         # training parameters
         argp.add_argument('--dropout', type=float, default=0)
