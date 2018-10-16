@@ -476,6 +476,7 @@ Center Loss (decay=0.95)
 ## 147
 
 Triplet Loss
+embed size: 64
 SGDR: lr=1e-3, t_mul=2.0, m_mul=1.0, alpha=1e-1
 exponential decay: step=1000, rate=0.999
 
@@ -483,4 +484,27 @@ exponential decay: step=1000, rate=0.999
 
 Center Loss (decay=0.95)
 
+## 149
+
+Triplet Loss
+embed size: 512
+
+## 150
+
+embed size: 4096
+
+## 151
+
+new naming
+embed size: 512
+
+## 152
+
+normalization: None
+DenseNet
+
+## 153
+
+normalization: None
+origin net
 

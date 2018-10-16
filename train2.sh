@@ -1,4 +1,4 @@
-python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_wav" --processes 2 --max-steps 2047000 --random-seed 0 --device /gpu:1 --postfix 152 --embed-size 512 --batch-size 40
+python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_npz" --packed --num-labels 5994 --batch-size 72 --processes 2 --max-steps 1023000 --random-seed 0 --device /gpu:1 --postfix 152 --embed-size 512 --normalization None
 
 exit
 

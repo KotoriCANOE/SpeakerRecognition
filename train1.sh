@@ -1,4 +1,4 @@
-python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_npz" --packed --num-labels 5994 --processes 2 --max-steps 2047000 --random-seed 0 --device /gpu:0 --postfix 151 --embed-size 512
+python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_npz" --packed --num-labels 5994 --batch-size 72 --processes 2 --max-steps 1023000 --random-seed 0 --device /gpu:0 --postfix 153 --embed-size 512 --normalization None
 
 exit
  --out-channels 552
@@ -36,3 +36,6 @@ python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_npz" --packed --out-ch
 
 python train.py "$HOME/Datasets/Speech/Corpus-others/npz" --packed --out-channels 1022 --processes 2 --max-steps 511000 --random-seed 0 --device /gpu:0 --postfix 201 --embed-size 512
 python train.py "$HOME/Datasets/Speech/Corpus-others/npz" --packed --out-channels 1022 --processes 2 --max-steps 1023000 --random-seed 0 --device /gpu:0 --postfix 201 --embed-size 512 --restore
+
+python train.py "$HOME/Datasets/Speech/VoxCeleb2/vox2_dev_npz" --packed --num-labels 5994 --processes 2 --max-steps 2047000 --random-seed 0 --device /gpu:0 --postfix 151 --embed-size 512
+
