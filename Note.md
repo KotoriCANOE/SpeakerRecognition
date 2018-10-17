@@ -508,3 +508,9 @@ DenseNet
 normalization: None
 origin net
 
+## 154
+
+normalization: None
+VGG-like net
+vox2_test
+batch size: 20
