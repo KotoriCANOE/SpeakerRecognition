@@ -1,5 +1,5 @@
 import tensorflow as tf
-from network import Discriminator3 as Discriminator
+from network import Discriminator as Discriminator
 
 DATA_FORMAT = 'NCHW'
 
@@ -126,13 +126,13 @@ class Model:
         # dependencies to be updated
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'Discriminator')
         # learning rate
-        lr_base = 5e-4
-        lr = 2 * lr_base / self.config.max_steps * (
-            1.0 * self.config.max_steps - tf.cast(global_step, tf.float32))
-        lr = tf.clip_by_value(lr, lr_base * 0, lr_base)
-        # lr = tf.train.cosine_decay_restarts(self.d_lr,
-        #     global_step, self.d_lr_step, t_mul=2.0, m_mul=1.0, alpha=1e-1)
-        # lr = tf.train.exponential_decay(lr, global_step, 1000, 0.999)
+        # lr_base = 5e-4
+        # lr = 2 * lr_base / self.config.max_steps * (
+        #     1.0 * self.config.max_steps - tf.cast(global_step, tf.float32))
+        # lr = tf.clip_by_value(lr, lr_base * 0, lr_base)
+        lr = tf.train.cosine_decay_restarts(self.d_lr,
+            global_step, self.d_lr_step, t_mul=2.0, m_mul=1.0, alpha=1e-1)
+        lr = tf.train.exponential_decay(lr, global_step, 1000, 0.999)
         self.d_train_sums.append(tf.summary.scalar('Discriminator/LR', lr))
         # optimizer
         opt = tf.contrib.opt.NadamOptimizer(lr)
