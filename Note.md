@@ -514,3 +514,25 @@ normalization: None
 VGG-like net
 vox2_test
 batch size: 20
+down-sampling: avg pooling
+
+## 155
+
+normalization: None
+VGG-like net
+vox2_dev
+batch size: 72
+down-sampling: avg pooling
+
+## 156
+
+down-sampling: strided convolution
+
+## 157
+
+down-sampling: max pooling
+
+## 158
+
+down-sampling: avg pooling
+(same as ##154)
